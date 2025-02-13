@@ -1,5 +1,8 @@
 [English](README.md) | [Korean](README_ko.md)
 
+[![openupm](https://img.shields.io/npm/v/com.kwanjoong.webviewrpc?label=openupm&registry_uri=https://package.openupm.com)](https://openupm.com/packages/com.kwanjoong.webviewrpc/)
+[![License](https://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE.md)
+
 # Unity WebView RPC
 
 Unity WebView RPC provides an abstraction layer that allows communication between the Unity client (C#) and WebView (HTML, JS) using protobuf, similar to gRPC.
