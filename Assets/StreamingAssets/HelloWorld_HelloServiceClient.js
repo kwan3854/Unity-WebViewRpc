@@ -3,13 +3,6 @@
 // import { WebViewRpcClient } from 'your-lib'; // (선택사항)
 import { encodeHelloRequest, decodeHelloResponse } from './hello_world.js';
 
-
-// import {
-//   
-//   HelloRequest, HelloResponse,
-//   
-// } from './...';
-
 export class HelloServiceClient {
     /**
      * @param {WebViewRpcClient} rpcClient

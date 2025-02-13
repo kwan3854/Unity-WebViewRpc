@@ -191,6 +191,7 @@ protoc \
 npx pbjs HelloWorld.proto --es6 hello_world.js
 
 // This produces hello_world.js.
+// Recommend setting the output filename to the same name as the service defined in the protobuf file.
 ```
 
 #### JavaScript Client Code Generation

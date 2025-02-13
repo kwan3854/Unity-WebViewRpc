@@ -167,6 +167,7 @@ protoc \
 npx pbjs HelloWorld.proto --es6 hello_world.js
 
 // 결과물로 hello_world.js 파일이 생성됩니다.
+// 결과물 이름은 proto 파일에서 Service 이름을 따서 생성하는 것을 권장합니다.
 ```
 
 **javascript 클라이언트 코드 생성하기**
