@@ -1,13 +1,3 @@
-/***************************************************************
- * VuplexBridge (modified)
- *
- * - JS -> C#: "window.vuplex.postMessage(base64Str)"
- * - C# -> JS: "window.addEventListener('vuplexmessage', ...)"
- *
- * => JS에서 이미 Protobuf -> Base64 변환된 문자열을
- *    'sendMessage(base64)'로 넘기면,
- *    그대로 C#에 전송.
- ***************************************************************/
 export class VuplexBridge {
     constructor() {
         this._onMessageCallback = null;
