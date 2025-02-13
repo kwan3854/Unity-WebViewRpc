@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using HelloWorld;
 using SampleRpc;
 using UnityEngine;
@@ -16,11 +17,9 @@ public class WebViewRpcTester : MonoBehaviour
 
     private async void Start()
     {
-        await webViewPrefab.WaitUntilInitialized();
-        webViewPrefab.WebView.LoadUrl("http://localhost:8081");
-
-        await webViewPrefab.WebView.WaitForNextPageLoadToFinish();
+        await InitializeWebView(webViewPrefab);
         
+        // Initialize C# Server to handle JS -> C# RPC
         var bridge = new ViewplexWebViewBridge(webViewPrefab);
         var server = new WebViewRPC.WebViewRpcServer(bridge)
         {
@@ -32,9 +31,12 @@ public class WebViewRpcTester : MonoBehaviour
         
         server.Start();
         
+        
+        // Initialize C# Client to handle C# -> JS RPC
         var rpcClient = new WebViewRPC.WebViewRpcClient(bridge);
         var client = new HelloServiceClient(rpcClient);
         
+        // Call RPC method
         var response = await client.SayHello(new HelloRequest()
         {
             Name = "World"
@@ -43,8 +45,10 @@ public class WebViewRpcTester : MonoBehaviour
         Debug.Log($"Received response: {response.Greeting}");
     }
     
-    void Update()
+    private async Task InitializeWebView(CanvasWebViewPrefab webView)
     {
-        
+        await webView.WaitUntilInitialized();
+        webView.WebView.LoadUrl("http://localhost:8081");
+        await webView.WebView.WaitForNextPageLoadToFinish();
     }
 }
