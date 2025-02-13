@@ -1,0 +1,26 @@
+{
+  "name": "com.kwanjoong.webviewrpc",
+  "version": "0.1.0",
+  "displayName": "Webview RPC",
+  "description": "The webview Remote Procedure Call bridge.",
+  "unity": "2022.3",
+  "documentationUrl": "https://github.com/kwan3854/Unity-WebviewRpc",
+  "keywords": [
+    "webview",
+    "rpc",
+    "javascript-bridge",
+    "remote procedure call"
+  ],
+  "author": {
+    "name": "Kwanjoong Lee",
+    "url": "https://github.com/kwan3854"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kwan3854/Unity-WebviewRpc.git"
+  },
+  "dependencies": {
+
+  },
+  "license": "MIT"
+}
