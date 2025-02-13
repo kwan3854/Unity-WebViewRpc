@@ -86,7 +86,7 @@ With WebView RPC, method calls between C# and JavaScript behave like regular fun
 ### Adding WebView Library
 
 - WebView RPC is not distributed as a package.
-- Add the files under [Unity-WebViewRpc/Assets/StreamingAssets/MocLib](https://github.com/kwan3854/Unity-WebViewRpc/tree/main/Assets/StreamingAssets/MocLib) to your JavaScript project.
+- Add the files under [Unity-WebViewRpc/WebViewRpcJS/RuntimeLibrary](https://github.com/kwan3854/Unity-WebViewRpc/tree/main/WebViewRpcJS/RuntimeLibrary) to your JavaScript project.
 
 ### Installing the protobuf Compiler
 
@@ -248,16 +248,6 @@ public class ViewplexWebViewBridge : IWebViewBridge
 ```
 
 ```javascript
-/***************************************************************
- * VuplexBridge (modified)
- *
- * - JS -> C#: "window.vuplex.postMessage(base64Str)"
- * - C# -> JS: "window.addEventListener('vuplexmessage', ...)"
- *
- * => If JS already has the Protobuf -> Base64 converted string,
- *    pass it as 'sendMessage(base64)',
- *    and it will be forwarded to C# as is.
- ***************************************************************/
 export class VuplexBridge {
     constructor() {
         this._onMessageCallback = null;

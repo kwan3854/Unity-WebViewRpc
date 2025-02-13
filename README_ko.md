@@ -70,8 +70,7 @@ flowchart LR
    ```
 ### 웹뷰 라이브러리 추가하기
 - WebView RPC는 패키지로 배포되지 않습니다.
-- [Unity-WebViewRpc/Assets/StreamingAssets
-  /MocLib](https://github.com/kwan3854/Unity-WebViewRpc/tree/main/Assets/StreamingAssets/MocLib) 하위의 파일들을 javascript 프로젝트에 추가합니다.
+- [Unity-WebViewRpc/WebViewRpcJS/RuntimeLibrary](https://github.com/kwan3854/Unity-WebViewRpc/tree/main/WebViewRpcJS/RuntimeLibrary) 하위의 파일들을 javascript 프로젝트에 추가합니다.
 
 ### protobuf 파일 생성기 설치
 #### protobuf 파일을 C#과 javascript로 변환하기 위해 `protoc` 컴파일러를 사용합니다.
@@ -217,16 +216,6 @@ public class ViewplexWebViewBridge : IWebViewBridge
 }
 ```
 ```javascript
-/***************************************************************
- * VuplexBridge (modified)
- *
- * - JS -> C#: "window.vuplex.postMessage(base64Str)"
- * - C# -> JS: "window.addEventListener('vuplexmessage', ...)"
- *
- * => JS에서 이미 Protobuf -> Base64 변환된 문자열을
- *    'sendMessage(base64)'로 넘기면,
- *    그대로 C#에 전송.
- ***************************************************************/
 export class VuplexBridge {
     constructor() {
         this._onMessageCallback = null;
