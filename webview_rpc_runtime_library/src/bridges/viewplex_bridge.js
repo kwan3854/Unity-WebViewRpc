@@ -1,5 +1,9 @@
 export class VuplexBridge {
     constructor() {
+        if (typeof window === 'undefined') {
+            throw new Error('VuplexBridge requires browser environment');
+        }
+        
         this._onMessageCallback = null;
         this._isVuplexReady = false;
         this._pendingMessages = [];

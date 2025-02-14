@@ -18,21 +18,29 @@ export function encodeEnvelopeToBase64(envObj) {
   }
 
 /** Uint8Array -> Base64 (browser JS) */
+let isNode = typeof window === 'undefined';
+
 export function base64FromBytes(u8arr) {
+  if (isNode) {
+    return Buffer.from(u8arr).toString('base64');
+  } else {
     let binary = "";
     for (let i = 0; i < u8arr.length; i++) {
-        binary += String.fromCharCode(u8arr[i]);
+      binary += String.fromCharCode(u8arr[i]); 
     }
     return btoa(binary);
+  }
 }
 
-/** Base64 -> Uint8Array (browser JS) */
 export function base64ToBytes(b64) {
+  if (isNode) {
+    return Buffer.from(b64, 'base64');
+  } else {
     const bin = atob(b64);
-    const len = bin.length;
-    const u8 = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        u8[i] = bin.charCodeAt(i);
+    const u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) {
+      u8[i] = bin.charCodeAt(i);
     }
     return u8;
+  }
 }
