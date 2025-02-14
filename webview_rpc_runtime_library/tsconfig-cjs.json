@@ -1,0 +1,12 @@
+// tsconfig-cjs.json (CommonJS용)
+{
+  "compilerOptions": {
+    "target": "es2018",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "./dist/cjs",
+    "allowJs": true,
+    "declaration": true
+  },
+  "include": ["src/**/*"]
+}

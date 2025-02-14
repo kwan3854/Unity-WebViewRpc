@@ -77,3 +77,21 @@ crashlytics-build.properties
 
 # Ignore Assets/Vuplex because it's paid asset
 /[Aa]ssets/Vuplex/
+
+# Node.js
+node_modules/
+dist/
+*.tgz
+
+# IDE
+.vscode/
+.idea/
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local development
+.env
+.env.local

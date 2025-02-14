@@ -1,0 +1,38 @@
+{
+  "name": "app-webview-rpc",
+  "version": "0.1.1",
+  "type": "module",
+  "description": "WebView RPC provides an abstraction layer that allows communication between the App (e.g. Unity C#) and WebView (HTML, JS) using protobuf, similar to gRPC.",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "exports": {
+    ".": {
+      "require": "./dist/cjs/index.js",
+      "import": "./dist/esm/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "rimraf dist && npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc -p tsconfig.json",
+    "build:cjs": "tsc -p tsconfig-cjs.json"
+  },
+  "devDependencies": {
+    "rimraf": "^5.0.0",
+    "typescript": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kwan3854/Unity-WebViewRpc.git",
+    "directory": "webview_rpc_runtime_library"
+  },
+  "author": "Kwanjoong Lee",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kwan3854/Unity-WebViewRpc/issues"
+  },
+  "homepage": "https://github.com/kwan3854/Unity-WebViewRpc#readme"
+}

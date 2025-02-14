@@ -1,37 +1,25 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <title>Unity WebViewRPC Test</title>
-</head>
-<body>
-<h1>Unity WebViewRPC Test</h1>
-<button id="btnSayHello">SayHello</button>
-<pre id="logs"></pre>
+import { VuplexBridge, WebViewRpcClient, WebViewRpcServer } from 'app-webview-rpc';
+import { HelloService } from './HelloWorld_HelloServiceBase.js';
+import { HelloServiceClient } from './HelloWorld_HelloServiceClient.js';
+import { MyHelloServiceImpl } from './MyHelloServiceImpl.js';
 
-<script type="module">
-    import { VuplexBridge } from './unity_bridge.js';
-    import { WebViewRpcClient } from './RuntimeLibrary/webview_rpc_client.js';
-    import { HelloServiceClient } from './HelloWorld_HelloServiceClient.js';
-    import { WebViewRpcServer } from './RuntimeLibrary/webview_rpc_server.js';
-    import { MyHelloServiceImpl } from './MyHelloServiceImpl.js';
-    import { HelloService } from './HelloWorld_HelloServiceBase.js';
-
+// DOM이 로드된 후 실행
+document.addEventListener('DOMContentLoaded', () => {
     // 1) 브리지 생성
     const bridge = new VuplexBridge();
-    
+
     // 2) RpcClient 생성
     const rpcClient = new WebViewRpcClient(bridge);
     // 3) HelloServiceClient
     const helloClient = new HelloServiceClient(rpcClient);
-    
+
     // 1) RpcServer 생성
     const rpcServer = new WebViewRpcServer(bridge);
     // 2) Bind your service
     const impl = new MyHelloServiceImpl();
     // 3) Generate Method Handlers
     const def = HelloService.bindService(impl);
-    
+
     rpcServer.services.push(def);
     rpcServer.start();
 
@@ -48,6 +36,4 @@
             console.error("Error: ", err);
         }
     });
-</script>
-</body>
-</html>
+});

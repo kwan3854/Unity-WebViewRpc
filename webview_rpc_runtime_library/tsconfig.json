@@ -1,0 +1,12 @@
+// tsconfig.json (ESM용)
+{
+  "compilerOptions": {
+    "target": "es2018",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "outDir": "./dist/esm",
+    "allowJs": true,
+    "declaration": true
+  },
+  "include": ["src/**/*"]
+}
