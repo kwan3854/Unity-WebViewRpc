@@ -101,7 +101,8 @@ npm run build
   openupm add com.kwanjoong.webviewrpc
   ```
 
-### Adding WebView Library
+### Adding `app-webview-rpc` Library to Javascript Side
+[npm package](https://www.npmjs.com/package/app-webview-rpc)
 #### Install
 ```bash
 npm install app-webview-rpc

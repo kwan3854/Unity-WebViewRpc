@@ -86,9 +86,24 @@ npm run build
    ```bash
    openupm add com.kwanjoong.webviewrpc
    ```
-### 웹뷰 라이브러리 추가하기
-- WebView RPC는 패키지로 배포되지 않습니다.
-- [Unity-WebViewRpc/WebViewRpcJS/RuntimeLibrary](https://github.com/kwan3854/Unity-WebViewRpc/tree/main/WebViewRpcJS/RuntimeLibrary) 하위의 파일들을 javascript 프로젝트에 추가합니다.
+### 자바스크립트 라이브러리 추가하기
+WebView RPC는 [npm 패키지](https://www.npmjs.com/package/app-webview-rpc)로 배포되고 있습니다.
+#### Install
+```bash
+npm install app-webview-rpc
+```
+
+#### Usage
+```javascript
+import { VuplexBridge, WebViewRpcClient, WebViewRpcServer } from 'app-webview-rpc';
+
+// RPC client
+const bridge = new VuplexBridge();
+const rpcClient = new WebViewRpcClient(bridge);
+
+// RPC server
+const rpcServer = new WebViewRpcServer(bridge);
+```
 
 ### protobuf 파일 생성기 설치
 #### protobuf 파일을 C#과 javascript로 변환하기 위해 `protoc` 컴파일러를 사용합니다.
