@@ -16,8 +16,7 @@ namespace WebViewRPC
         /// </summary>
         public List<ServiceDefinition> Services { get; } = new();
         
-        private readonly Dictionary<string, Func<ByteString, ByteString>> _methodHandlers = new();
-        private readonly Dictionary<string, Func<ByteString, UniTask<ByteString>>> _asyncMethodHandlers = new();
+        private readonly Dictionary<string, Func<ByteString, UniTask<ByteString>>> _methodHandlers = new();
 
         public WebViewRpcServer(IWebViewBridge bridge)
         {
@@ -30,16 +29,11 @@ namespace WebViewRPC
         /// </summary>
         public void Start()
         {
-            foreach (var sd in Services)
+            foreach (var service in Services)
             {
-                foreach (var kv in sd.MethodHandlers)
+                foreach (var handler in service.MethodHandlers)
                 {
-                    _methodHandlers[kv.Key] = kv.Value;
-                }
-                
-                foreach (var kv in sd.AsyncMethodHandlers)
-                {
-                    _asyncMethodHandlers[kv.Key] = kv.Value;
+                    _methodHandlers[handler.Key] = handler.Value;
                 }
             }
         }
@@ -51,11 +45,11 @@ namespace WebViewRPC
             try
             {
                 var bytes = Convert.FromBase64String(base64);
-                var env = RpcEnvelope.Parser.ParseFrom(bytes);
+                var envelope = RpcEnvelope.Parser.ParseFrom(bytes);
 
-                if (env.IsRequest)
+                if (envelope.IsRequest)
                 {
-                    await HandleRequestAsync(env);
+                    await HandleRequestAsync(envelope);
                 }
             }
             catch (Exception ex)
@@ -64,42 +58,35 @@ namespace WebViewRPC
             }
         }
 
-        private async UniTask HandleRequestAsync(RpcEnvelope reqEnv)
+        private async UniTask HandleRequestAsync(RpcEnvelope requestEnvelope)
         {
-            var respEnv = new RpcEnvelope
+            var responseEnvelope = new RpcEnvelope
             {
-                RequestId = reqEnv.RequestId,
+                RequestId = requestEnvelope.RequestId,
                 IsRequest = false,
-                Method = reqEnv.Method,
+                Method = requestEnvelope.Method,
             };
 
             try
             {
-                // Check async handlers first
-                if (_asyncMethodHandlers.TryGetValue(reqEnv.Method, out var asyncHandler))
+                if (_methodHandlers.TryGetValue(requestEnvelope.Method, out var handler))
                 {
-                    var responsePayload = await asyncHandler(reqEnv.Payload);
-                    respEnv.Payload = ByteString.CopyFrom(responsePayload.ToByteArray());
-                }
-                // Fallback to sync handlers
-                else if (_methodHandlers.TryGetValue(reqEnv.Method, out var handler))
-                {
-                    var responsePayload = handler(reqEnv.Payload);
-                    respEnv.Payload = ByteString.CopyFrom(responsePayload.ToByteArray());
+                    var responsePayload = await handler(requestEnvelope.Payload);
+                    responseEnvelope.Payload = responsePayload;
                 }
                 else
                 {
-                    respEnv.Error = $"Unknown method: {reqEnv.Method}";
+                    responseEnvelope.Error = $"Unknown method: {requestEnvelope.Method}";
                 }
             }
             catch (Exception ex)
             {
-                respEnv.Error = ex.Message;
+                responseEnvelope.Error = ex.Message;
             }
 
-            var respBytes = respEnv.ToByteArray();
-            var respBase64 = Convert.ToBase64String(respBytes);
-            _bridge.SendMessageToWeb(respBase64);
+            var responseBytes = responseEnvelope.ToByteArray();
+            var responseBase64 = Convert.ToBase64String(responseBytes);
+            _bridge.SendMessageToWeb(responseBase64);
         }
 
         public void Dispose()

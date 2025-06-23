@@ -1,84 +1,98 @@
-import { decodeEnvelopeFromBase64, encodeEnvelopeToBase64 } from "./webview_rpc_utils.js";
+import { decodeRpcEnvelope, encodeRpcEnvelope } from './rpc_envelope.js';
+import { base64ToUint8Array, uint8ArrayToBase64 } from './webview_rpc_utils.js';
 
+/**
+ * WebView RPC Client
+ * Makes RPC calls to Unity server
+ */
 export class WebViewRpcClient {
-  /**
-   * @param {IJsBridge} bridge
-   */
-  constructor(bridge) {
-    this.bridge = bridge;
-    this._disposed = false;
+    constructor(bridge) {
+        this._bridge = bridge;
+        this._pendingRequests = new Map();
+        this._requestIdCounter = 1;
+        this._disposed = false;
 
-    // requestId -> { resolve, reject }
-    this.pendingMap = new Map();
-
-    this.bridge.onMessage((base64Str) => this._onBridgeMessage(base64Str));
-  }
-
-  /**
-   * JS -> 서버 RPC 호출
-   * @param {string} methodName
-   * @param {Uint8Array} requestBytes
-   * @returns {Promise<Uint8Array>} responseBytes
-   */
-  callMethod(methodName, requestBytes) {
-    if (this._disposed) {
-      return Promise.reject(new Error("RpcClient disposed"));
+        // Listen for responses from Unity
+        this._bridge.onMessage((base64Message) => {
+            this._handleMessage(base64Message);
+        });
     }
 
-    return new Promise((resolve, reject) => {
-      const requestId = generateRequestId();
-      this.pendingMap.set(requestId, { resolve, reject });
+    /**
+     * Call a remote method
+     * @param {string} method - Method name
+     * @param {Uint8Array} requestPayload - Request payload
+     * @returns {Promise<Uint8Array>} Response payload
+     */
+    async callMethod(method, requestPayload) {
+        if (this._disposed) {
+            throw new Error('RpcClient is disposed');
+        }
 
-      const envelopeObj = {
-        requestId,
-        isRequest: true,
-        method: methodName,
-        payload: requestBytes,
-        error: ""
-      };
+        const requestId = String(this._requestIdCounter++);
+        
+        const envelope = {
+            requestId,
+            isRequest: true,
+            method,
+            payload: requestPayload,
+            error: null
+        };
 
-      const base64Str = encodeEnvelopeToBase64(envelopeObj);
-      this.bridge.sendMessage(base64Str);
-    });
-  }
+        // Create promise for this request
+        const promise = new Promise((resolve, reject) => {
+            this._pendingRequests.set(requestId, { resolve, reject });
+        });
 
-  _onBridgeMessage(base64Str) {
-    if (this._disposed) return;
+        // Send request to Unity
+        const bytes = encodeRpcEnvelope(envelope);
+        const base64 = uint8ArrayToBase64(bytes);
+        this._bridge.sendMessage(base64);
 
-    let env;
-    try {
-      env = decodeEnvelopeFromBase64(base64Str);
-    } catch (ex) {
-      console.warn("[WebViewRpcClient] decode error:", ex);
-      return;
+        return promise;
     }
 
-    if (env.isRequest) {
-      // 클라이언트 입장 -> Request는 무시
-      return;
+    /**
+     * Handle incoming message from Unity
+     * @param {string} base64Message 
+     */
+    _handleMessage(base64Message) {
+        if (this._disposed) return;
+
+        try {
+            const bytes = base64ToUint8Array(base64Message);
+            const envelope = decodeRpcEnvelope(bytes);
+
+            if (!envelope.isRequest) {
+                // Handle response
+                const pending = this._pendingRequests.get(envelope.requestId);
+                if (pending) {
+                    this._pendingRequests.delete(envelope.requestId);
+                    
+                    if (envelope.error) {
+                        pending.reject(new Error(envelope.error));
+                    } else {
+                        pending.resolve(envelope.payload);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error handling message:', error);
+        }
     }
 
-    // 응답 처리
-    const { requestId, payload, error } = env;
-    const pending = this.pendingMap.get(requestId);
-    if (!pending) return;
-    this.pendingMap.delete(requestId);
-
-    if (error) {
-      pending.reject(new Error(error));
-    } else {
-      pending.resolve(payload);
+    /**
+     * Dispose the client
+     */
+    dispose() {
+        if (!this._disposed) {
+            this._disposed = true;
+            
+            // Reject all pending requests
+            for (const pending of this._pendingRequests.values()) {
+                pending.reject(new Error('Client disposed'));
+            }
+            this._pendingRequests.clear();
+        }
     }
-  }
-
-  dispose() {
-    if (!this._disposed) {
-      this._disposed = true;
-      // onMessage 해제 등
-    }
-  }
-}
-
-function generateRequestId() {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }

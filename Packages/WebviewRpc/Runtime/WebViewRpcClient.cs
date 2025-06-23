@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Google.Protobuf;
+using UnityEngine;
 
 namespace WebViewRPC
 {
@@ -12,11 +13,8 @@ namespace WebViewRPC
     public class WebViewRpcClient : IDisposable
     {
         private readonly IWebViewBridge _bridge;
-
-        // Mapping RequestId -> UniTaskCompletionSource
-        private readonly Dictionary<string, UniTaskCompletionSource<RpcEnvelope>> _pendingRequests
-            = new Dictionary<string, UniTaskCompletionSource<RpcEnvelope>>();
-
+        private readonly Dictionary<string, UniTaskCompletionSource<RpcEnvelope>> _pendingRequests = new();
+        private int _requestIdCounter = 1;
         private bool _disposed;
 
         public WebViewRpcClient(IWebViewBridge bridge)
@@ -30,56 +28,41 @@ namespace WebViewRPC
         /// User should not call this method directly.
         /// Instead, use generated method from .proto file.
         /// </summary>
-        public async UniTask<TResponse> CallMethodAsync<TResponse>(string methodName, IMessage request, CancellationToken cancellationToken = default)
+        public async UniTask<TResponse> CallMethod<TResponse>(string method, IMessage request)
             where TResponse : IMessage<TResponse>, new()
         {
-            if (_disposed) throw new ObjectDisposedException(nameof(WebViewRpcClient));
-            
-            var requestId = Guid.NewGuid().ToString("N");
-            
-            var utcs = new UniTaskCompletionSource<RpcEnvelope>();
-            lock (_pendingRequests)
+            var requestId = (_requestIdCounter++).ToString();
+            var envelope = new RpcEnvelope
             {
-                _pendingRequests[requestId] = utcs;
+                RequestId = requestId,
+                IsRequest = true,
+                Method = method,
+                Payload = ByteString.CopyFrom(request.ToByteArray())
+            };
+
+            var tcs = new UniTaskCompletionSource<RpcEnvelope>();
+            _pendingRequests[requestId] = tcs;
+
+            try
+            {
+                var bytes = envelope.ToByteArray();
+                var base64 = Convert.ToBase64String(bytes);
+                _bridge.SendMessageToWeb(base64);
+
+                var responseEnvelope = await tcs.Task;
+
+                if (!string.IsNullOrEmpty(responseEnvelope.Error))
+                {
+                    throw new Exception($"RPC Error: {responseEnvelope.Error}");
+                }
+
+                var response = new TResponse();
+                response.MergeFrom(responseEnvelope.Payload);
+                return response;
             }
-
-            // Handle cancellation
-            using (cancellationToken.Register(() =>
+            finally
             {
-                lock (_pendingRequests)
-                {
-                    if (_pendingRequests.Remove(requestId, out var cancelled))
-                    {
-                        cancelled.TrySetCanceled();
-                    }
-                }
-            }))
-            {
-                // (Protobuf -> byte[] -> Base64)
-                var requestBytes = request.ToByteArray();
-                var env = new RpcEnvelope
-                {
-                    RequestId = requestId,
-                    IsRequest = true,
-                    Method = methodName,
-                    Payload = ByteString.CopyFrom(requestBytes)
-                };
-                var envBytes = env.ToByteArray();
-                var envBase64 = Convert.ToBase64String(envBytes);
-
-                // Send to WebView
-                _bridge.SendMessageToWeb(envBase64);
-                
-                var responseEnv = await utcs.Task;
-                if (!string.IsNullOrEmpty(responseEnv.Error))
-                {
-                    throw new Exception($"RPC Error: {responseEnv.Error}");
-                }
-
-                // Payload -> TResponse
-                var resp = new TResponse();
-                resp.MergeFrom(responseEnv.Payload);
-                return resp;
+                _pendingRequests.Remove(requestId);
             }
         }
         
@@ -90,29 +73,16 @@ namespace WebViewRPC
             try
             {
                 var bytes = Convert.FromBase64String(base64);
-                var env = RpcEnvelope.Parser.ParseFrom(bytes);
+                var envelope = RpcEnvelope.Parser.ParseFrom(bytes);
 
-                if (!env.IsRequest)
+                if (!envelope.IsRequest && _pendingRequests.TryGetValue(envelope.RequestId, out var tcs))
                 {
-                    HandleResponse(env);
+                    tcs.TrySetResult(envelope);
                 }
             }
             catch (Exception ex)
             {
-                throw new Exception($"Exception while handling message: {ex}");
-            }
-        }
-
-        private void HandleResponse(RpcEnvelope env)
-        {
-            UniTaskCompletionSource<RpcEnvelope> utcs = null;
-            lock (_pendingRequests)
-            {
-                _pendingRequests.Remove(env.RequestId, out utcs);
-            }
-            if (utcs != null)
-            {
-                utcs.TrySetResult(env);
+                Debug.LogError($"Error processing message: {ex}");
             }
         }
 
@@ -121,6 +91,14 @@ namespace WebViewRPC
             if (!_disposed)
             {
                 _bridge.OnMessageReceived -= OnBridgeMessage;
+                
+                // Cancel all pending requests
+                foreach (var pending in _pendingRequests.Values)
+                {
+                    pending.TrySetCanceled();
+                }
+                _pendingRequests.Clear();
+                
                 _disposed = true;
             }
         }

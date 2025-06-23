@@ -1,19 +1,21 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Google.Protobuf;
 
 namespace WebViewRPC
 {
     /// <summary>
-    /// Set of 'MethodName' -> 'Handler' mappings
+    /// Represents a service definition with method handlers.
+    /// All methods are async by default.
     /// </summary>
     public class ServiceDefinition
     {
-        public Dictionary<string, Func<ByteString, ByteString>> MethodHandlers
-            = new Dictionary<string, Func<ByteString, ByteString>>();
-            
-        public Dictionary<string, Func<ByteString, UniTask<ByteString>>> AsyncMethodHandlers
-            = new Dictionary<string, Func<ByteString, UniTask<ByteString>>>();
+        /// <summary>
+        /// Dictionary mapping method names to their async handlers.
+        /// </summary>
+        public Dictionary<string, Func<ByteString, UniTask<ByteString>>> MethodHandlers { get; set; } = 
+            new Dictionary<string, Func<ByteString, UniTask<ByteString>>>();
     }
 }
