@@ -13,7 +13,10 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "README.md",
+    "README_ko.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "rimraf dist && npm run build:esm && npm run build:cjs",
