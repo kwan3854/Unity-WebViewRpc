@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using Google.Protobuf;
 using UnityEngine;
 
@@ -16,6 +17,7 @@ namespace WebViewRPC
         public List<ServiceDefinition> Services { get; } = new();
         
         private readonly Dictionary<string, Func<ByteString, ByteString>> _methodHandlers = new();
+        private readonly Dictionary<string, Func<ByteString, UniTask<ByteString>>> _asyncMethodHandlers = new();
 
         public WebViewRpcServer(IWebViewBridge bridge)
         {
@@ -34,10 +36,15 @@ namespace WebViewRPC
                 {
                     _methodHandlers[kv.Key] = kv.Value;
                 }
+                
+                foreach (var kv in sd.AsyncMethodHandlers)
+                {
+                    _asyncMethodHandlers[kv.Key] = kv.Value;
+                }
             }
         }
 
-        private void OnBridgeMessage(string base64)
+        private async void OnBridgeMessage(string base64)
         {
             if (_disposed) return;
 
@@ -48,7 +55,7 @@ namespace WebViewRPC
 
                 if (env.IsRequest)
                 {
-                    HandleRequest(env);
+                    await HandleRequestAsync(env);
                 }
             }
             catch (Exception ex)
@@ -57,7 +64,7 @@ namespace WebViewRPC
             }
         }
 
-        private void HandleRequest(RpcEnvelope reqEnv)
+        private async UniTask HandleRequestAsync(RpcEnvelope reqEnv)
         {
             var respEnv = new RpcEnvelope
             {
@@ -68,7 +75,14 @@ namespace WebViewRPC
 
             try
             {
-                if (_methodHandlers.TryGetValue(reqEnv.Method, out var handler))
+                // Check async handlers first
+                if (_asyncMethodHandlers.TryGetValue(reqEnv.Method, out var asyncHandler))
+                {
+                    var responsePayload = await asyncHandler(reqEnv.Payload);
+                    respEnv.Payload = ByteString.CopyFrom(responsePayload.ToByteArray());
+                }
+                // Fallback to sync handlers
+                else if (_methodHandlers.TryGetValue(reqEnv.Method, out var handler))
                 {
                     var responsePayload = handler(reqEnv.Payload);
                     respEnv.Payload = ByteString.CopyFrom(responsePayload.ToByteArray());
