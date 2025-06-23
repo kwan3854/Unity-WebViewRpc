@@ -9,6 +9,18 @@ Unity WebView RPC provides an abstraction layer that allows communication betwee
 It extends the traditional `JavaScript bridge` communication method to work similarly to a Remote Procedure Call (RPC).
 To avoid dependency on a specific WebView library, it provides a Bridge interface so that communication can be achieved with the same code, regardless of the WebView library used.
 
+## What's New in v1.0.1
+
+### Clean Async-Only Architecture
+WebView RPC v1.0.1 has been completely redesigned for a cleaner, async-only architecture:
+
+- **Abstract Pattern**: Server implementations must now override abstract methods
+- **No Async Suffix**: Method names are clean without the `Async` suffix
+- **Simplified Design**: Removed all synchronous method support
+- **Better Type Safety**: Abstract methods ensure compile-time safety
+
+For detailed migration guide, see [CHANGELOG.md](CHANGELOG.md).
+
 ## Architecture
 
 WebView RPC simplifies the workflow compared to the traditional `JavaScript bridge` method.
@@ -72,21 +84,6 @@ npm install
 # 3. Build project
 npm run build
 ```
-
-## What's New in v1.0.0
-
-### Full Async/Await Support
-WebView RPC now supports full async/await patterns for both server and client implementations:
-
-- **C# Integration**: Uses `UniTask` for better Unity performance
-- **JavaScript Integration**: Native `async/await` support
-- **Backward Compatibility**: Existing synchronous code continues to work through the Virtual-Virtual pattern
-
-### Breaking Changes
-- Generated methods now have `Async` suffix (e.g., `SayHelloAsync`)
-- Server implementations must use async patterns
-
-For detailed migration guide, see [CHANGELOG.md](CHANGELOG.md).
 
 ## Installation
 
@@ -172,7 +169,7 @@ Download the latest release from the [WebViewRPC Code Generator repository](http
 
 HelloWorld is a simple RPC service that receives a `HelloRequest` message and returns a `HelloResponse` message. In this example, we will implement HelloWorld and verify communication between the Unity client and the WebView client.
 
-The HelloWorld service takes a `HelloRequest` and returns a `HelloResponse`. First, let’s look at the example where the C# side acts as the server and the JavaScript side acts as the client.
+The HelloWorld service takes a `HelloRequest` and returns a `HelloResponse`. First, let's look at the example where the C# side acts as the server and the JavaScript side acts as the client.
 
 ### Defining the protobuf File
 
@@ -265,7 +262,7 @@ protoc \
 - The bridge code mediates communication between C# and JavaScript.
 - WebViewRpc is abstracted so it can be used with any WebView library.
 - Implement the bridge code according to your chosen WebView library.
-- Below is an example using Viewplex’s CanvasWebViewPrefab.
+- Below is an example using Viewplex's CanvasWebViewPrefab.
 
 ```csharp
 using System;
@@ -335,7 +332,7 @@ export class VuplexBridge {
         if (this._isVuplexReady && window.vuplex) {
             window.vuplex.postMessage(base64Str);
         } else {
-            // If vuplex isn’t ready yet, store messages in a queue
+            // If vuplex isn't ready yet, store messages in a queue
             this._pendingMessages.push(base64Str);
         }
     }
@@ -394,11 +391,11 @@ using UnityEngine;
 
 namespace SampleRpc
 {
-    // Inherit HelloServiceBase and implement the SayHelloAsync method.
+    // Inherit HelloServiceBase and implement the SayHello method.
     // HelloServiceBase is generated from HelloWorld.proto.
     public class HelloWorldService : HelloServiceBase
     {
-        public override async UniTask<HelloResponse> SayHelloAsync(HelloRequest request)
+        public override async UniTask<HelloResponse> SayHello(HelloRequest request)
         {
             Debug.Log($"Received request: {request.Name}");
             
@@ -428,8 +425,7 @@ document.getElementById('btnSayHello').addEventListener('click', async () => {
         const reqObj = { name: "Hello World! From WebView" };
         console.log("Request to Unity: ", reqObj);
 
-        // Note: Method now has Async suffix
-        const resp = await helloClient.SayHelloAsync(reqObj);
+        const resp = await helloClient.SayHello(reqObj);
         console.log("Response from Unity: ", resp.greeting);
     } catch (err) {
         console.error("Error: ", err);
@@ -488,8 +484,8 @@ public class WebViewRpcTester : MonoBehaviour
         // Create a HelloServiceClient
         var client = new HelloServiceClient(rpcClient);
 
-        // Send a request (note the Async suffix)
-        var response = await client.SayHelloAsync(new HelloRequest()
+        // Send a request
+        var response = await client.SayHello(new HelloRequest()
         {
             Name = "World"
         });
@@ -529,7 +525,7 @@ import { HelloServiceBase } from "./HelloWorld_HelloServiceBase.js";
 
 // Inherit HelloServiceBase from the auto-generated HelloWorld_HelloServiceBase.js
 export class MyHelloServiceImpl extends HelloServiceBase {
-    async SayHelloAsync(requestObj) {
+    async SayHello(requestObj) {
         // Check the incoming request
         console.log("JS Server received: ", requestObj);
         

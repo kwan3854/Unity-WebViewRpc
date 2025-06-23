@@ -1,6 +1,6 @@
 {
   "name": "com.kwanjoong.webviewrpc",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "displayName": "Webview RPC",
   "description": "The webview Remote Procedure Call bridge.",
   "unity": "2022.3",

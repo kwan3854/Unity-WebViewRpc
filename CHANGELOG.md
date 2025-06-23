@@ -5,93 +5,72 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-06-23
-
-### Added
-- Full async/await support for both server and client implementations
-- `asyncMethodHandlers` dictionary in `ServiceDefinition` for async method registration
-- Async method handling in `WebViewRpcServer` with automatic fallback to sync handlers
-- Virtual-Virtual pattern in code generation templates for backward compatibility
+## [1.0.1] - 2025-06-23
 
 ### Changed
-- **BREAKING**: Generated server methods now use async pattern by default
-  - C# servers must implement `UniTask<Response> MethodNameAsync(Request request)`
-  - JavaScript servers must implement `async MethodNameAsync(request)`
-- **BREAKING**: Generated client methods now have `Async` suffix
-  - C# clients call `await client.MethodNameAsync(request)`
-  - JavaScript clients call `await client.MethodNameAsync(request)`
-- WebViewRpcServer now processes async handlers first, then falls back to sync handlers
+- **BREAKING**: Complete redesign for async-only architecture
+- **BREAKING**: Removed all synchronous method support
+- **BREAKING**: Removed `Async` suffix from all method names
+- **BREAKING**: Changed from Virtual-Virtual pattern to Abstract pattern
+  - Server implementations must now use `abstract` methods (mandatory override)
+  - Cleaner, more explicit async-only design
+- Simplified codebase by removing dual sync/async handlers
+- Improved type safety with abstract methods
 
-### Migration Guide
+### Removed
+- Synchronous method handlers
+- `AsyncMethodHandlers` dictionary (merged into single `MethodHandlers`)
+- Virtual-Virtual pattern fallback mechanism
+- `Async` suffix from all generated methods
+
+### Migration Guide from v1.0.0
 
 #### For C# Server Implementations
 
-**Before (v0.x):**
-```csharp
-public class MyService : MyServiceBase
-{
-    public override Response MyMethod(Request request)
-    {
-        // Synchronous implementation
-        return new Response { ... };
-    }
-}
-```
-
-**After (v1.0):**
+**v1.0.0:**
 ```csharp
 public class MyService : MyServiceBase
 {
     public override async UniTask<Response> MyMethodAsync(Request request)
     {
-        // Asynchronous implementation
-        await UniTask.Delay(100);
-        return new Response { ... };
+        // Implementation
     }
 }
 ```
 
-#### For JavaScript Server Implementations
-
-**Before (v0.x):**
-```javascript
-class MyService extends MyServiceBase {
-    MyMethod(request) {
-        // Synchronous implementation
-        return { ... };
-    }
-}
-```
-
-**After (v1.0):**
-```javascript
-class MyService extends MyServiceBase {
-    async MyMethodAsync(request) {
-        // Asynchronous implementation
-        await someAsyncOperation();
-        return { ... };
-    }
-}
-```
-
-#### For Client Code
-
-**Before (v0.x):**
+**v1.0.1:**
 ```csharp
-var response = await client.MyMethod(request);
+public class MyService : MyServiceBase
+{
+    public override async UniTask<Response> MyMethod(Request request)
+    {
+        // Implementation (remove Async suffix)
+    }
+}
 ```
 
-**After (v1.0):**
+#### For Client Code (C# and JavaScript)
+
+**v1.0.0:**
 ```csharp
 var response = await client.MyMethodAsync(request);
 ```
 
-### Backward Compatibility
+**v1.0.1:**
+```csharp
+var response = await client.MyMethod(request);
+```
 
-The library maintains backward compatibility through the Virtual-Virtual pattern:
-- Existing synchronous implementations will continue to work
-- You can gradually migrate methods to async as needed
-- The server automatically handles both sync and async methods
+### Notes
+- This version prioritizes clean, maintainable code over backward compatibility
+- All RPC methods are now async-only by design
+- Simpler mental model: one method = one async implementation
+
+## [1.0.0] - 2025-06-23
+
+### Added
+- Initial async/await support with Virtual-Virtual pattern
+- Backward compatibility with synchronous methods
 
 ## [0.1.1] - Previous version
 - Initial release with basic RPC functionality 

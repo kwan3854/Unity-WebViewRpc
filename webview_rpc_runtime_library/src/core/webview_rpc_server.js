@@ -1,102 +1,95 @@
-import { decodeEnvelopeFromBase64, encodeEnvelopeToBase64 } from "./webview_rpc_utils.js";
-import { ServiceDefinition } from "./service_definition.js";
+import { decodeRpcEnvelope, encodeRpcEnvelope } from './rpc_envelope.js';
+import { base64ToUint8Array, uint8ArrayToBase64 } from './webview_rpc_utils.js';
 
+/**
+ * WebView RPC Server
+ * Handles incoming RPC requests from Unity
+ */
 export class WebViewRpcServer {
-  /**
-   * @param {IJsBridge} bridge - { sendMessage(str), onMessage(cb) }
-   */
-  constructor(bridge) {
-    this.bridge = bridge;
-
-    this.services = []; // Array<ServiceDefinition>
-    this.methodHandlers = {}; // 최종 (methodName -> function(bytes) => bytes)
-    this.asyncMethodHandlers = {}; // 최종 (methodName -> async function(bytes) => Promise<bytes>)
-
-    this._started = false;
-    this._disposed = false;
-
-    // 수신 이벤트
-    this.bridge.onMessage((base64Str) => this._onBridgeMessage(base64Str));
-  }
-
-  start() {
-    if (this._started) return;
-    this._started = true;
-
-    // Services 배열을 쭉 돌면서, 모든 methodHandler를 합침
-    for (const svcDef of this.services) {
-      for (const [methodName, handlerFn] of Object.entries(svcDef.methodHandlers)) {
-        this.methodHandlers[methodName] = handlerFn;
-      }
-      
-      // asyncMethodHandlers도 합침
-      for (const [methodName, asyncHandlerFn] of Object.entries(svcDef.asyncMethodHandlers || {})) {
-        this.asyncMethodHandlers[methodName] = asyncHandlerFn;
-      }
-    }
-  }
-
-  async _onBridgeMessage(base64Str) {
-    if (this._disposed) return;
-
-    let env;
-    try {
-      env = decodeEnvelopeFromBase64(base64Str);
-    } catch (ex) {
-      console.warn("Exception while parsing envelope:", ex);
-      return;
+    constructor(bridge) {
+        this._bridge = bridge;
+        this._services = [];
+        this._methodHandlers = {};
+        
+        // Listen for messages from Unity
+        this._bridge.onMessage((base64Message) => {
+            this._handleMessage(base64Message);
+        });
     }
 
-    if (!env.isRequest) {
-      // 응답이면 서버 입장에선 무시
-      return;
+    /**
+     * Add a service to the server
+     * @param {ServiceDefinition} service 
+     */
+    addService(service) {
+        this._services.push(service);
     }
 
-    // 요청 처리
-    const { requestId, method, payload } = env; // payload = Uint8Array
-    const respEnv = {
-      requestId,
-      isRequest: false,
-      method,
-      payload: new Uint8Array(), // 기본값
-      error: ""
-    };
-
-    // 먼저 asyncMethodHandlers를 확인
-    const asyncHandler = this.asyncMethodHandlers[method];
-    if (asyncHandler) {
-      try {
-        // asyncHandler( requestBytes ) => Promise<responseBytes>
-        const responseBytes = await asyncHandler(payload);
-        respEnv.payload = responseBytes;
-      } catch (ex) {
-        respEnv.error = ex.message || String(ex);
-      }
-    } else {
-      // 동기 핸들러 폴백
-      const handler = this.methodHandlers[method];
-      if (!handler) {
-        respEnv.error = `Unknown method: ${method}`;
-      } else {
-        try {
-          // handler( requestBytes ) => responseBytes
-          const responseBytes = handler(payload);
-          respEnv.payload = responseBytes;
-        } catch (ex) {
-          respEnv.error = ex.message || String(ex);
+    /**
+     * Start the server and register all method handlers
+     */
+    start() {
+        // Merge all service handlers into one map
+        for (const service of this._services) {
+            for (const [methodName, handler] of Object.entries(service.methodHandlers)) {
+                this._methodHandlers[methodName] = handler;
+            }
         }
-      }
     }
 
-    // 응답 전송
-    const respBase64 = encodeEnvelopeToBase64(respEnv);
-    this.bridge.sendMessage(respBase64);
-  }
+    /**
+     * Handle incoming message from Unity
+     * @param {string} base64Message 
+     */
+    async _handleMessage(base64Message) {
+        try {
+            const bytes = base64ToUint8Array(base64Message);
+            const envelope = decodeRpcEnvelope(bytes);
 
-  dispose() {
-    if (!this._disposed) {
-      // 실제론 onMessage 해제 등
-      this._disposed = true;
+            if (envelope.isRequest) {
+                await this._handleRequest(envelope);
+            }
+        } catch (error) {
+            console.error('Error handling message:', error);
+        }
     }
-  }
+
+    /**
+     * Handle RPC request
+     * @param {Object} requestEnvelope 
+     */
+    async _handleRequest(requestEnvelope) {
+        const responseEnvelope = {
+            requestId: requestEnvelope.requestId,
+            isRequest: false,
+            method: requestEnvelope.method,
+            payload: null,
+            error: null
+        };
+
+        try {
+            const handler = this._methodHandlers[requestEnvelope.method];
+            if (handler) {
+                const responsePayload = await handler(requestEnvelope.payload);
+                responseEnvelope.payload = responsePayload;
+            } else {
+                responseEnvelope.error = `Unknown method: ${requestEnvelope.method}`;
+            }
+        } catch (error) {
+            responseEnvelope.error = error.message || 'Internal server error';
+        }
+
+        // Send response back to Unity
+        const responseBytes = encodeRpcEnvelope(responseEnvelope);
+        const responseBase64 = uint8ArrayToBase64(responseBytes);
+        this._bridge.sendMessage(responseBase64);
+    }
+
+    /**
+     * Legacy property for compatibility
+     * @deprecated Use addService() instead
+     */
+    get services() {
+        return this._services;
+    }
 }

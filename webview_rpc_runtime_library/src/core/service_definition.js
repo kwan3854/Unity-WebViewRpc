@@ -1,12 +1,14 @@
+/**
+ * Service definition for WebView RPC
+ * All methods are async by default
+ */
 export class ServiceDefinition {
     constructor() {
-      // methodName -> handlerFn
-      // handlerFn: (requestBytes: Uint8Array) => Uint8Array
-      this.methodHandlers = {};
-      
-      // methodName -> asyncHandlerFn
-      // asyncHandlerFn: (requestBytes: Uint8Array) => Promise<Uint8Array>
-      this.asyncMethodHandlers = {};
+        /**
+         * Dictionary mapping method names to their async handlers
+         * @type {Object.<string, function(Uint8Array): Promise<Uint8Array>>}
+         */
+        this.methodHandlers = {};
     }
-  }
+}
   
