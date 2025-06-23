@@ -1,7 +1,9 @@
 {
     "name": "Runtime",
     "rootNamespace": "WebviewRpc",
-    "references": [],
+    "references": [
+        "UniTask"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
