@@ -67,6 +67,21 @@ npm install
 npm run build
 ```
 
+## v1.0.0의 새로운 기능
+
+### 완전한 Async/Await 지원
+WebView RPC는 이제 서버 및 클라이언트 구현 모두에 대해 완전한 async/await 패턴을 지원합니다:
+
+- **C# 통합**: Unity 성능 향상을 위한 `UniTask` 사용
+- **JavaScript 통합**: 네이티브 `async/await` 지원
+- **하위 호환성**: Virtual-Virtual 패턴을 통해 기존 동기 코드가 계속 작동
+
+### 주요 변경사항
+- 생성된 메서드에 이제 `Async` 접미사가 붙습니다 (예: `SayHelloAsync`)
+- 서버 구현은 비동기 패턴을 사용해야 합니다
+
+자세한 마이그레이션 가이드는 [CHANGELOG.md](CHANGELOG.md)를 참조하세요.
+
 ## 설치
 ### 유니티 프로젝트에 WebView RPC 추가하기
 1. Nuget 패키지 매니저를 통해 `Protobuf` 패키지를 설치합니다.
@@ -341,18 +356,23 @@ public class WebViewRpcTester : MonoBehaviour
 }
 ```
 ```csharp
+using Cysharp.Threading.Tasks;
 using HelloWorld;
 using UnityEngine;
 
 namespace SampleRpc
 {
-    // HelloWorldService를 상속받아 SayHello 메서드를 구현
-    // HelloWorldService는 HelloWorld.proto에서 생성된 코드입니다.
+    // HelloServiceBase를 상속받아 SayHelloAsync 메서드를 구현
+    // HelloServiceBase는 HelloWorld.proto에서 생성된 코드입니다.
     public class HelloWorldService : HelloServiceBase
     {
-        public override HelloResponse SayHello(HelloRequest request)
+        public override async UniTask<HelloResponse> SayHelloAsync(HelloRequest request)
         {
             Debug.Log($"Received request: {request.Name}");
+            
+            // 비동기 작업 예시
+            await UniTask.Delay(100);
+            
             return new HelloResponse()
             {
                 // 요청을 받아 응답을 반환
@@ -375,7 +395,8 @@ document.getElementById('btnSayHello').addEventListener('click', async () => {
         const reqObj = {name: "Hello World! From WebView"};
         console.log("Request to Unity: ", reqObj);
 
-        const resp = await helloClient.SayHello(reqObj);
+        // 참고: 메서드에 이제 Async 접미사가 붙습니다
+        const resp = await helloClient.SayHelloAsync(reqObj);
         console.log("Response from Unity: ", resp.greeting);
     } catch (err) {
         console.error("Error: ", err);
@@ -427,8 +448,8 @@ public class WebViewRpcTester : MonoBehaviour
         // HelloServiceClient 생성
         var client = new HelloServiceClient(rpcClient);
         
-        // 요청 보내기
-        var response = await client.SayHello(new HelloRequest()
+        // 요청 보내기 (Async 접미사 주의)
+        var response = await client.SayHelloAsync(new HelloRequest()
         {
             Name = "World"
         });
@@ -466,9 +487,12 @@ import { HelloServiceBase } from "./HelloWorld_HelloServiceBase.js";
 
 // 자동 생성된 HelloWorld_HelloServiceBase.js의 HelloServiceBase를 상속받아 구현
 export class MyHelloServiceImpl extends HelloServiceBase {
-    SayHello(requestObj) {
+    async SayHelloAsync(requestObj) {
         // 받은 요청을 확인
         console.log("JS Server received: ", requestObj);
+        
+        // 비동기 작업 예시
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         // 요청을 받아 응답을 반환
         return { greeting: "Hello from JS! I got your message: " + requestObj.name };
@@ -478,4 +502,4 @@ export class MyHelloServiceImpl extends HelloServiceBase {
 ```
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE) file for details.

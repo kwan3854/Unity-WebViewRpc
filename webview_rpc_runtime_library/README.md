@@ -73,6 +73,21 @@ npm install
 npm run build
 ```
 
+## What's New in v1.0.0
+
+### Full Async/Await Support
+WebView RPC now supports full async/await patterns for both server and client implementations:
+
+- **C# Integration**: Uses `UniTask` for better Unity performance
+- **JavaScript Integration**: Native `async/await` support
+- **Backward Compatibility**: Existing synchronous code continues to work through the Virtual-Virtual pattern
+
+### Breaking Changes
+- Generated methods now have `Async` suffix (e.g., `SayHelloAsync`)
+- Server implementations must use async patterns
+
+For detailed migration guide, see [CHANGELOG.md](CHANGELOG.md).
+
 ## Installation
 
 ### Adding WebView RPC to a Unity Project
@@ -373,18 +388,23 @@ public class WebViewRpcTester : MonoBehaviour
 ```
 
 ```csharp
+using Cysharp.Threading.Tasks;
 using HelloWorld;
 using UnityEngine;
 
 namespace SampleRpc
 {
-    // Inherit HelloWorldService and implement the SayHello method.
-    // HelloWorldService is generated from HelloWorld.proto.
+    // Inherit HelloServiceBase and implement the SayHelloAsync method.
+    // HelloServiceBase is generated from HelloWorld.proto.
     public class HelloWorldService : HelloServiceBase
     {
-        public override HelloResponse SayHello(HelloRequest request)
+        public override async UniTask<HelloResponse> SayHelloAsync(HelloRequest request)
         {
             Debug.Log($"Received request: {request.Name}");
+            
+            // Example async operation
+            await UniTask.Delay(100);
+            
             return new HelloResponse()
             {
                 // Process the request and return a response
@@ -408,7 +428,8 @@ document.getElementById('btnSayHello').addEventListener('click', async () => {
         const reqObj = { name: "Hello World! From WebView" };
         console.log("Request to Unity: ", reqObj);
 
-        const resp = await helloClient.SayHello(reqObj);
+        // Note: Method now has Async suffix
+        const resp = await helloClient.SayHelloAsync(reqObj);
         console.log("Response from Unity: ", resp.greeting);
     } catch (err) {
         console.error("Error: ", err);
@@ -467,8 +488,8 @@ public class WebViewRpcTester : MonoBehaviour
         // Create a HelloServiceClient
         var client = new HelloServiceClient(rpcClient);
 
-        // Send a request
-        var response = await client.SayHello(new HelloRequest()
+        // Send a request (note the Async suffix)
+        var response = await client.SayHelloAsync(new HelloRequest()
         {
             Name = "World"
         });
@@ -508,9 +529,12 @@ import { HelloServiceBase } from "./HelloWorld_HelloServiceBase.js";
 
 // Inherit HelloServiceBase from the auto-generated HelloWorld_HelloServiceBase.js
 export class MyHelloServiceImpl extends HelloServiceBase {
-    SayHello(requestObj) {
+    async SayHelloAsync(requestObj) {
         // Check the incoming request
         console.log("JS Server received: ", requestObj);
+        
+        // Example async operation
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         // Process the request and return a response
         return {
@@ -521,4 +545,4 @@ export class MyHelloServiceImpl extends HelloServiceBase {
 ```
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
