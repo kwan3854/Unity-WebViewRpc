@@ -10,6 +10,7 @@ export class WebViewRpcServer {
 
     this.services = []; // Array<ServiceDefinition>
     this.methodHandlers = {}; // 최종 (methodName -> function(bytes) => bytes)
+    this.asyncMethodHandlers = {}; // 최종 (methodName -> async function(bytes) => Promise<bytes>)
 
     this._started = false;
     this._disposed = false;
@@ -27,10 +28,15 @@ export class WebViewRpcServer {
       for (const [methodName, handlerFn] of Object.entries(svcDef.methodHandlers)) {
         this.methodHandlers[methodName] = handlerFn;
       }
+      
+      // asyncMethodHandlers도 합침
+      for (const [methodName, asyncHandlerFn] of Object.entries(svcDef.asyncMethodHandlers || {})) {
+        this.asyncMethodHandlers[methodName] = asyncHandlerFn;
+      }
     }
   }
 
-  _onBridgeMessage(base64Str) {
+  async _onBridgeMessage(base64Str) {
     if (this._disposed) return;
 
     let env;
@@ -56,16 +62,29 @@ export class WebViewRpcServer {
       error: ""
     };
 
-    const handler = this.methodHandlers[method];
-    if (!handler) {
-      respEnv.error = `Unknown method: ${method}`;
-    } else {
+    // 먼저 asyncMethodHandlers를 확인
+    const asyncHandler = this.asyncMethodHandlers[method];
+    if (asyncHandler) {
       try {
-        // handler( requestBytes ) => responseBytes
-        const responseBytes = handler(payload);
+        // asyncHandler( requestBytes ) => Promise<responseBytes>
+        const responseBytes = await asyncHandler(payload);
         respEnv.payload = responseBytes;
       } catch (ex) {
         respEnv.error = ex.message || String(ex);
+      }
+    } else {
+      // 동기 핸들러 폴백
+      const handler = this.methodHandlers[method];
+      if (!handler) {
+        respEnv.error = `Unknown method: ${method}`;
+      } else {
+        try {
+          // handler( requestBytes ) => responseBytes
+          const responseBytes = handler(payload);
+          respEnv.payload = responseBytes;
+        } catch (ex) {
+          respEnv.error = ex.message || String(ex);
+        }
       }
     }
 

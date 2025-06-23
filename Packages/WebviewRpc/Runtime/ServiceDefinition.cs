@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using Google.Protobuf;
 
 namespace WebViewRPC
@@ -11,5 +12,8 @@ namespace WebViewRPC
     {
         public Dictionary<string, Func<ByteString, ByteString>> MethodHandlers
             = new Dictionary<string, Func<ByteString, ByteString>>();
+            
+        public Dictionary<string, Func<ByteString, UniTask<ByteString>>> AsyncMethodHandlers
+            = new Dictionary<string, Func<ByteString, UniTask<ByteString>>>();
     }
 }
