@@ -35,8 +35,7 @@ export class WebViewRpcClient {
             requestId,
             isRequest: true,
             method,
-            payload: requestPayload,
-            error: null
+            payload: requestPayload
         };
 
         // Create promise for this request
