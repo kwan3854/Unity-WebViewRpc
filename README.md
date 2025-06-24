@@ -9,17 +9,16 @@ Unity WebView RPC provides an abstraction layer that allows communication betwee
 It extends the traditional `JavaScript bridge` communication method to work similarly to a Remote Procedure Call (RPC).
 To avoid dependency on a specific WebView library, it provides a Bridge interface so that communication can be achieved with the same code, regardless of the WebView library used.
 
-## What's New in v1.0.1
+## What's New in v1.0.4
 
-### Clean Async-Only Architecture
-WebView RPC v1.0.1 has been completely redesigned for a cleaner, async-only architecture:
+### Bug Fixes
+WebView RPC v1.0.4 fixes a critical null handling issue:
 
-- **Abstract Pattern**: Server implementations must now override abstract methods
-- **No Async Suffix**: Method names are clean without the `Async` suffix
-- **Simplified Design**: Removed all synchronous method support
-- **Better Type Safety**: Abstract methods ensure compile-time safety
+- **Fixed null handling in RPC envelope encoding**: Resolved `Cannot read properties of null (reading 'length')` error
+- **Proto3 compliance**: Now properly handles optional fields according to Proto3 specification
+- **Improved stability**: Optional fields are now omitted instead of being set to null
 
-For detailed migration guide, see [CHANGELOG.md](CHANGELOG.md).
+For the complete changelog, see [CHANGELOG.md](CHANGELOG.md).
 
 ## Architecture
 
@@ -117,7 +116,7 @@ npm run build
 [npm package](https://www.npmjs.com/package/app-webview-rpc)
 #### Install
 ```bash
-npm install app-webview-rpc
+npm install app-webview-rpc@1.0.4
 ```
 
 #### Usage
@@ -376,7 +375,7 @@ public class WebViewRpcTester : MonoBehaviour
 
     private async Task InitializeWebView(CanvasWebViewPrefab webView)
     {
-        // Example uses Viewplex’s CanvasWebViewPrefab
+        // Example uses Viewplex's CanvasWebViewPrefab
         await webView.WaitUntilInitialized();
         webView.WebView.LoadUrl("http://localhost:8081");
         await webView.WebView.WaitForNextPageLoadToFinish();
