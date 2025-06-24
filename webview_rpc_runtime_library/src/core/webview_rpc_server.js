@@ -62,9 +62,8 @@ export class WebViewRpcServer {
         const responseEnvelope = {
             requestId: requestEnvelope.requestId,
             isRequest: false,
-            method: requestEnvelope.method,
-            payload: null,
-            error: null
+            method: requestEnvelope.method
+            // payload and error fields will be set only when needed
         };
 
         try {

@@ -5,7 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.1] - 2025-06-23
+## [1.0.4] - 2025-06-24
+
+### Fixed
+- Fixed null handling issue in RPC envelope encoding
+  - WebViewRpcClient and WebViewRpcServer were explicitly setting `error` field to `null`
+  - This caused `Cannot read properties of null (reading 'length')` error
+  - Now follows Proto3 spec: optional fields are omitted instead of set to null
+  - Proto3 string fields default to empty string automatically when not set
+
+## [1.0.3] - 2025-06-23
+
+### Fixed
+- Fixed npm package build issue where wrong function names were in the published package
+  - The source code used `base64ToUint8Array` and `uint8ArrayToBase64`
+  - But the published npm package incorrectly had `base64ToBytes` and `base64FromBytes`
+  - This caused import errors when using the package
+
+## [1.0.2] - 2025-06-23
 
 ### Changed
 - **BREAKING**: Complete redesign for async-only architecture
