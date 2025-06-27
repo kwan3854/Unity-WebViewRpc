@@ -3,7 +3,7 @@
 
 // 메서드별 인코딩 함수를 가져옴
 // Get encoding/decoding functions for each method
-import { decodeHelloRequest, encodeHelloResponse } from './hello_world.js';
+import { decodeHelloRequest, encodeHelloResponse, } from './HelloService.js';
 
 /**
  * 추상 클래스 (C#의 HelloServiceBase)
@@ -29,16 +29,20 @@ export class HelloServiceBase {
  * - impl: HelloServiceBase implementation
  * - return: ServiceDefinition(methodHandlers)
  */
-export const HelloService = {
-  bindService: (serviceImpl) => {
-    return {
-      methodHandlers: {
-        "HelloService.SayHello": async (requestBytes) => {
-          const request = decodeHelloRequest(requestBytes);
-          const response = await serviceImpl.SayHello(request);
-          return encodeHelloResponse(response);
-        }
-      }
+export class HelloService {
+  static bindService(impl) {
+    const def = {
+      methodHandlers: {}
     };
+
+    
+    def.methodHandlers["HelloService.SayHello"] = async (reqBytes) => {
+      const reqObj = decodeHelloRequest(reqBytes);
+      const respObj = await impl.SayHello(reqObj);
+      return encodeHelloResponse(respObj);
+    };
+    
+
+    return def;
   }
-};
+}

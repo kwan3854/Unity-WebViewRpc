@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package helloworld;
+
+// C# namespace (when generating C# code)
+option csharp_namespace = "HelloWorld";
+
+// Request message for chunking test
+message HelloRequest {
+  string name = 1;
+  
+  // Very long string for testing chunking functionality
+  string longMessage = 2;
+  
+  // Optional: number of times to repeat the response
+  int32 repeatCount = 3;
+}
+
+// Response message
+message HelloResponse {
+  string greeting = 1;
+  
+  // Echo back the long message to test bidirectional chunking
+  string echoedMessage = 2;
+  
+  // Timestamp when the message was processed
+  string processedAt = 3;
+  
+  // Size information for debugging
+  int32 originalMessageSize = 4;
+}
+
+// HelloWorld service for testing RPC with chunking
+service HelloService {
+  // Say hello and test chunking with large messages
+  rpc SayHello (HelloRequest) returns (HelloResponse);
+} 
