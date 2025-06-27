@@ -17,7 +17,7 @@ namespace HelloWorld
         
         public async Task<HelloResponse> SayHello(HelloRequest request)
         {
-            return await _rpcClient.CallMethodAsync<HelloResponse>("HelloService.SayHello", request);
+            return await _rpcClient.CallMethod<HelloResponse>("HelloService.SayHello", request);
         }
         
     }

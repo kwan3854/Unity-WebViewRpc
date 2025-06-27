@@ -14,6 +14,7 @@ namespace WebViewRPC
     {
         private readonly IWebViewBridge _bridge;
         private readonly Dictionary<string, UniTaskCompletionSource<RpcEnvelope>> _pendingRequests = new();
+        private readonly ChunkAssembler _chunkAssembler = new();
         private int _requestIdCounter = 1;
         private bool _disposed;
 
@@ -32,22 +33,35 @@ namespace WebViewRPC
             where TResponse : IMessage<TResponse>, new()
         {
             var requestId = (_requestIdCounter++).ToString();
-            var envelope = new RpcEnvelope
-            {
-                RequestId = requestId,
-                IsRequest = true,
-                Method = method,
-                Payload = ByteString.CopyFrom(request.ToByteArray())
-            };
-
+            var requestBytes = request.ToByteArray();
+            
             var tcs = new UniTaskCompletionSource<RpcEnvelope>();
             _pendingRequests[requestId] = tcs;
 
             try
             {
-                var bytes = envelope.ToByteArray();
-                var base64 = Convert.ToBase64String(bytes);
-                _bridge.SendMessageToWeb(base64);
+                // Check if chunking is needed
+                if (WebViewRpcConfiguration.EnableChunking && 
+                    requestBytes.Length > WebViewRpcConfiguration.MaxChunkSize)
+                {
+                    // Send as chunks
+                    await SendChunkedMessage(requestId, method, requestBytes, true);
+                }
+                else
+                {
+                    // Send as single message
+                    var envelope = new RpcEnvelope
+                    {
+                        RequestId = requestId,
+                        IsRequest = true,
+                        Method = method,
+                        Payload = ByteString.CopyFrom(requestBytes)
+                    };
+                    
+                    var bytes = envelope.ToByteArray();
+                    var base64 = Convert.ToBase64String(bytes);
+                    _bridge.SendMessageToWeb(base64);
+                }
 
                 var responseEnvelope = await tcs.Task;
 
@@ -66,6 +80,45 @@ namespace WebViewRPC
             }
         }
         
+        private async UniTask SendChunkedMessage(string requestId, string method, byte[] data, bool isRequest)
+        {
+            var chunkSetId = $"{requestId}_{Guid.NewGuid():N}";
+            var totalChunks = (int)Math.Ceiling((double)data.Length / WebViewRpcConfiguration.MaxChunkSize);
+            
+            for (int i = 0; i < totalChunks; i++)
+            {
+                var offset = i * WebViewRpcConfiguration.MaxChunkSize;
+                var length = Math.Min(WebViewRpcConfiguration.MaxChunkSize, data.Length - offset);
+                var chunkData = new byte[length];
+                Array.Copy(data, offset, chunkData, 0, length);
+                
+                var envelope = new RpcEnvelope
+                {
+                    RequestId = requestId,
+                    IsRequest = isRequest,
+                    Method = method,
+                    Payload = ByteString.CopyFrom(chunkData),
+                    ChunkInfo = new ChunkInfo
+                    {
+                        ChunkSetId = chunkSetId,
+                        ChunkIndex = i,
+                        TotalChunks = totalChunks,
+                        OriginalSize = data.Length
+                    }
+                };
+                
+                var bytes = envelope.ToByteArray();
+                var base64 = Convert.ToBase64String(bytes);
+                _bridge.SendMessageToWeb(base64);
+                
+                // Optional: Add small delay between chunks to avoid overwhelming the bridge
+                if (i < totalChunks - 1)
+                {
+                    await UniTask.Delay(1);
+                }
+            }
+        }
+        
         private void OnBridgeMessage(string base64)
         {
             if (_disposed) return;
@@ -75,14 +128,44 @@ namespace WebViewRPC
                 var bytes = Convert.FromBase64String(base64);
                 var envelope = RpcEnvelope.Parser.ParseFrom(bytes);
 
-                if (!envelope.IsRequest && _pendingRequests.TryGetValue(envelope.RequestId, out var tcs))
+                // Check if this is a chunked message
+                if (envelope.ChunkInfo != null)
                 {
-                    tcs.TrySetResult(envelope);
+                    // Try to reassemble
+                    var completeData = _chunkAssembler.TryAssemble(envelope);
+                    if (completeData != null)
+                    {
+                        // Create a new envelope with the complete data
+                        var completeEnvelope = new RpcEnvelope
+                        {
+                            RequestId = envelope.RequestId,
+                            IsRequest = envelope.IsRequest,
+                            Method = envelope.Method,
+                            Payload = ByteString.CopyFrom(completeData),
+                            Error = envelope.Error
+                        };
+                        
+                        ProcessCompleteEnvelope(completeEnvelope);
+                    }
+                    // else: waiting for more chunks
+                }
+                else
+                {
+                    // Process as regular message
+                    ProcessCompleteEnvelope(envelope);
                 }
             }
             catch (Exception ex)
             {
                 Debug.LogError($"Error processing message: {ex}");
+            }
+        }
+        
+        private void ProcessCompleteEnvelope(RpcEnvelope envelope)
+        {
+            if (!envelope.IsRequest && _pendingRequests.TryGetValue(envelope.RequestId, out var tcs))
+            {
+                tcs.TrySetResult(envelope);
             }
         }
 

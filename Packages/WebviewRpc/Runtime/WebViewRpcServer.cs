@@ -9,6 +9,7 @@ namespace WebViewRPC
     public class WebViewRpcServer : IDisposable
     {
         private readonly IWebViewBridge _bridge;
+        private readonly ChunkAssembler _chunkAssembler = new();
         private bool _disposed;
 
         /// <summary>
@@ -47,9 +48,37 @@ namespace WebViewRPC
                 var bytes = Convert.FromBase64String(base64);
                 var envelope = RpcEnvelope.Parser.ParseFrom(bytes);
 
-                if (envelope.IsRequest)
+                // Check if this is a chunked message
+                if (envelope.ChunkInfo != null)
                 {
-                    await HandleRequestAsync(envelope);
+                    // Try to reassemble
+                    var completeData = _chunkAssembler.TryAssemble(envelope);
+                    if (completeData != null)
+                    {
+                        // Create a new envelope with the complete data
+                        var completeEnvelope = new RpcEnvelope
+                        {
+                            RequestId = envelope.RequestId,
+                            IsRequest = envelope.IsRequest,
+                            Method = envelope.Method,
+                            Payload = ByteString.CopyFrom(completeData),
+                            Error = envelope.Error
+                        };
+                        
+                        if (completeEnvelope.IsRequest)
+                        {
+                            await HandleRequestAsync(completeEnvelope);
+                        }
+                    }
+                    // else: waiting for more chunks
+                }
+                else
+                {
+                    // Process as regular message
+                    if (envelope.IsRequest)
+                    {
+                        await HandleRequestAsync(envelope);
+                    }
                 }
             }
             catch (Exception ex)
@@ -60,33 +89,116 @@ namespace WebViewRPC
 
         private async UniTask HandleRequestAsync(RpcEnvelope requestEnvelope)
         {
-            var responseEnvelope = new RpcEnvelope
-            {
-                RequestId = requestEnvelope.RequestId,
-                IsRequest = false,
-                Method = requestEnvelope.Method,
-            };
+            ByteString responsePayload = null;
+            string error = null;
 
             try
             {
                 if (_methodHandlers.TryGetValue(requestEnvelope.Method, out var handler))
                 {
-                    var responsePayload = await handler(requestEnvelope.Payload);
-                    responseEnvelope.Payload = responsePayload;
+                    responsePayload = await handler(requestEnvelope.Payload);
                 }
                 else
                 {
-                    responseEnvelope.Error = $"Unknown method: {requestEnvelope.Method}";
+                    error = $"Unknown method: {requestEnvelope.Method}";
                 }
             }
             catch (Exception ex)
             {
-                responseEnvelope.Error = ex.Message;
+                error = ex.Message;
             }
 
-            var responseBytes = responseEnvelope.ToByteArray();
-            var responseBase64 = Convert.ToBase64String(responseBytes);
-            _bridge.SendMessageToWeb(responseBase64);
+            // Send response
+            if (responsePayload != null)
+            {
+                var responseBytes = responsePayload.ToByteArray();
+                
+                // Check if chunking is needed
+                if (WebViewRpcConfiguration.EnableChunking && 
+                    responseBytes.Length > WebViewRpcConfiguration.MaxChunkSize)
+                {
+                    // Send as chunks
+                    await SendChunkedMessage(requestEnvelope.RequestId, requestEnvelope.Method, 
+                        responseBytes, false, error);
+                }
+                else
+                {
+                    // Send as single message
+                    var responseEnvelope = new RpcEnvelope
+                    {
+                        RequestId = requestEnvelope.RequestId,
+                        IsRequest = false,
+                        Method = requestEnvelope.Method,
+                        Payload = responsePayload,
+                        Error = error
+                    };
+                    
+                    var bytes = responseEnvelope.ToByteArray();
+                    var base64 = Convert.ToBase64String(bytes);
+                    _bridge.SendMessageToWeb(base64);
+                }
+            }
+            else
+            {
+                // Error response
+                var responseEnvelope = new RpcEnvelope
+                {
+                    RequestId = requestEnvelope.RequestId,
+                    IsRequest = false,
+                    Method = requestEnvelope.Method,
+                    Error = error ?? "Unknown error"
+                };
+                
+                var bytes = responseEnvelope.ToByteArray();
+                var base64 = Convert.ToBase64String(bytes);
+                _bridge.SendMessageToWeb(base64);
+            }
+        }
+        
+        private async UniTask SendChunkedMessage(string requestId, string method, byte[] data, 
+            bool isRequest, string error = null)
+        {
+            var chunkSetId = $"{requestId}_{Guid.NewGuid():N}";
+            var totalChunks = (int)Math.Ceiling((double)data.Length / WebViewRpcConfiguration.MaxChunkSize);
+            
+            for (int i = 0; i < totalChunks; i++)
+            {
+                var offset = i * WebViewRpcConfiguration.MaxChunkSize;
+                var length = Math.Min(WebViewRpcConfiguration.MaxChunkSize, data.Length - offset);
+                var chunkData = new byte[length];
+                Array.Copy(data, offset, chunkData, 0, length);
+                
+                var envelope = new RpcEnvelope
+                {
+                    RequestId = requestId,
+                    IsRequest = isRequest,
+                    Method = method,
+                    Payload = ByteString.CopyFrom(chunkData),
+                    ChunkInfo = new ChunkInfo
+                    {
+                        ChunkSetId = chunkSetId,
+                        ChunkIndex = i,
+                        TotalChunks = totalChunks,
+                        OriginalSize = data.Length
+                    }
+                };
+                
+                // Only set error on the first chunk
+                if (i == 0 && !string.IsNullOrEmpty(error))
+                {
+                    envelope.Error = error;
+                }
+                
+                var bytes = envelope.ToByteArray();
+                var base64 = Convert.ToBase64String(bytes);
+                _bridge.SendMessageToWeb(base64);
+                
+                // Optional: Add small delay between chunks to avoid overwhelming the bridge
+                if (i < totalChunks - 1)
+                {
+                    await UniTask.Delay(1);
+                }
+            }
         }
 
         public void Dispose()

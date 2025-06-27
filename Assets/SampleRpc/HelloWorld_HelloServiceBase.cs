@@ -25,7 +25,7 @@ namespace HelloWorld
             var def = new ServiceDefinition();
 
             
-            def.MethodHandlers["HelloService.SayHello"] = (reqBytes) =>
+            def.MethodHandlers["HelloService.SayHello"] = async (reqBytes) =>
             {
                 var req = new HelloRequest();
                 req.MergeFrom(reqBytes);
