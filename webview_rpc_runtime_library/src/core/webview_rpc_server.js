@@ -13,11 +13,15 @@ export class WebViewRpcServer {
         this._services = [];
         this._methodHandlers = {};
         this._chunkAssembler = new ChunkAssembler();
+        this._disposed = false;
+        
+        // Store the message handler for cleanup
+        this._messageHandler = (base64Message) => {
+            this._handleMessage(base64Message);
+        };
         
         // Listen for messages from Unity
-        this._bridge.onMessage((base64Message) => {
-            this._handleMessage(base64Message);
-        });
+        this._bridge.onMessage(this._messageHandler);
     }
 
     /**
@@ -25,6 +29,9 @@ export class WebViewRpcServer {
      * @param {ServiceDefinition} service 
      */
     addService(service) {
+        if (this._disposed) {
+            throw new Error('Cannot add service to disposed server');
+        }
         this._services.push(service);
     }
 
@@ -32,6 +39,10 @@ export class WebViewRpcServer {
      * Start the server and register all method handlers
      */
     start() {
+        if (this._disposed) {
+            throw new Error('Cannot start disposed server');
+        }
+        
         // Merge all service handlers into one map
         for (const service of this._services) {
             for (const [methodName, handler] of Object.entries(service.methodHandlers)) {
@@ -45,6 +56,8 @@ export class WebViewRpcServer {
      * @param {string} base64Message 
      */
     async _handleMessage(base64Message) {
+        if (this._disposed) return;
+        
         try {
             const bytes = base64ToUint8Array(base64Message);
             const envelope = decodeRpcEnvelope(bytes);
@@ -84,6 +97,8 @@ export class WebViewRpcServer {
      * @param {Object} requestEnvelope 
      */
     async _handleRequest(requestEnvelope) {
+        if (this._disposed) return;
+        
         let responsePayload = null;
         let error = null;
 
@@ -203,5 +218,25 @@ export class WebViewRpcServer {
      */
     get services() {
         return this._services;
+    }
+    
+    /**
+     * Dispose the server and clean up resources
+     */
+    dispose() {
+        if (this._disposed) return;
+        
+        this._disposed = true;
+        
+        // Clear all services and handlers
+        this._services = [];
+        this._methodHandlers = {};
+        
+        // Dispose the bridge if it has a dispose method
+        if (this._bridge && typeof this._bridge.dispose === 'function') {
+            this._bridge.dispose();
+        }
+        
+        console.log('WebViewRpcServer disposed');
     }
 }

@@ -3,10 +3,13 @@ import { HelloService } from './HelloWorld_HelloServiceBase.js';
 import { HelloServiceClient } from './HelloWorld_HelloServiceClient.js';
 import { MyHelloServiceImpl } from './MyHelloServiceImpl.js';
 
+// Global references for cleanup
+let bridge, rpcClient, rpcServer;
+
 // DOM이 로드된 후 실행
 document.addEventListener('DOMContentLoaded', () => {
     // 1) 브리지 생성
-    const bridge = new VuplexBridge();
+    bridge = new VuplexBridge();
 
     // 청킹 설정 (테스트를 위해 작은 값으로 설정)
     try {
@@ -27,12 +30,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // 2) RpcClient 생성
-    const rpcClient = new WebViewRpcClient(bridge);
+    rpcClient = new WebViewRpcClient(bridge);
     // 3) HelloServiceClient
     const helloClient = new HelloServiceClient(rpcClient);
 
     // 1) RpcServer 생성
-    const rpcServer = new WebViewRpcServer(bridge);
+    rpcServer = new WebViewRpcServer(bridge);
     // 2) Bind your service
     const impl = new MyHelloServiceImpl();
     // 3) Generate Method Handlers
@@ -184,4 +187,56 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Add config test button to the page
     document.querySelector('body').insertBefore(configTestBtn, document.getElementById('logs'));
+    
+    // Add dispose test button
+    const disposeBtn = document.createElement('button');
+    disposeBtn.textContent = 'Test Dispose';
+    disposeBtn.addEventListener('click', () => {
+        log("--- Testing Dispose Functionality ---");
+        
+        // Dispose all resources
+        if (rpcClient) {
+            rpcClient.dispose();
+            rpcClient = null;
+            log("✓ RpcClient disposed");
+        }
+        
+        if (rpcServer) {
+            rpcServer.dispose();
+            rpcServer = null;
+            log("✓ RpcServer disposed");
+        }
+        
+        // Note: Bridge is disposed by client/server, so we don't need to dispose it separately
+        bridge = null;
+        
+        log("All resources cleaned up. Further RPC calls will fail.");
+        log("--------------------------");
+    });
+    
+    // Add dispose test button to the page
+    document.querySelector('body').insertBefore(disposeBtn, document.getElementById('logs'));
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    console.log('Page unloading - cleaning up resources...');
+    
+    // Dispose RPC resources
+    if (rpcClient) {
+        rpcClient.dispose();
+    }
+    
+    if (rpcServer) {
+        rpcServer.dispose();
+    }
+});
+
+// Also cleanup on visibility change (mobile browser background)
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        console.log('Page hidden - consider cleanup if needed');
+        // Note: We don't dispose here because the page might become visible again
+        // But you could implement a timeout-based cleanup if needed
+    }
 });

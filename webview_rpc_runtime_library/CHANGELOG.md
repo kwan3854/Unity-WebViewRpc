@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.8] - 2025-01-22
+
+### Added
+- Proper dispose pattern for JavaScript components
+- `dispose()` method to VuplexBridge to remove event listeners
+- `dispose()` method to WebViewRpcServer
+- Automatic cleanup on page unload
+- Disposal state checking to prevent operations on disposed objects
+- Sample code demonstrating proper cleanup
+
+### Changed
+- WebViewRpcClient now disposes the bridge when disposed
+- WebViewRpcServer now disposes the bridge when disposed
+- Event handlers are now stored for proper removal
+
+### Fixed
+- Memory leaks from unremoved event listeners
+- Potential resource leaks when page navigates away
+
 ## [2.0.7] - 2025-01-22
 
 ### Fixed

@@ -164,6 +164,13 @@ export class WebViewRpcClient {
                 pending.reject(new Error('Client disposed'));
             }
             this._pendingRequests.clear();
+            
+            // Dispose the bridge if it has a dispose method
+            if (this._bridge && typeof this._bridge.dispose === 'function') {
+                this._bridge.dispose();
+            }
+            
+            console.log('WebViewRpcClient disposed');
         }
     }
 }
