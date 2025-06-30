@@ -174,7 +174,11 @@ namespace SampleRpc
         {
             Debug.Log("[WebViewRpcTester] OnDestroy - Cleaning up RPC components");
             
-            // Dispose in reverse order of creation
+            // WebView가 이미 파괴되었을 수 있으므로, 먼저 Bridge를 dispose
+            _bridge?.Dispose();
+            _bridge = null;
+            
+            // 그 다음 RPC 컴포넌트들을 정리
             _client = null;
             
             _rpcClient?.Dispose();
@@ -182,10 +186,6 @@ namespace SampleRpc
             
             _server?.Dispose();
             _server = null;
-            
-            // Dispose the bridge last
-            _bridge?.Dispose();
-            _bridge = null;
             
             Debug.Log("[WebViewRpcTester] OnDestroy - Cleanup complete");
         }

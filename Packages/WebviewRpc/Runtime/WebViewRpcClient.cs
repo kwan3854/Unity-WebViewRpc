@@ -18,6 +18,7 @@ namespace WebViewRPC
         private int _requestIdCounter = 1;
         private readonly object _pendingRequestsLock = new object();
         private bool _disposed;
+        private CancellationTokenSource _cancellationTokenSource = new();
 
         public WebViewRpcClient(IWebViewBridge bridge)
         {
@@ -33,6 +34,11 @@ namespace WebViewRPC
         public async UniTask<TResponse> CallMethod<TResponse>(string method, IMessage request)
             where TResponse : IMessage<TResponse>, new()
         {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(WebViewRpcClient), "Cannot call method on disposed client");
+            }
+            
             var requestId = Interlocked.Increment(ref _requestIdCounter).ToString();
             var requestBytes = request.ToByteArray();
             
@@ -90,12 +96,18 @@ namespace WebViewRPC
         
         private async UniTask SendChunkedMessage(string requestId, string method, byte[] data, bool isRequest)
         {
+            // Check disposed state
+            if (_disposed || _cancellationTokenSource.Token.IsCancellationRequested) return;
+            
             var chunkSetId = $"{requestId}_{Guid.NewGuid():N}";
             int effectivePayloadSize = WebViewRpcConfiguration.GetEffectivePayloadSize();
             var totalChunks = (int)Math.Ceiling((double)data.Length / effectivePayloadSize);
             
             for (int i = 1; i <= totalChunks; i++)
             {
+                // Check disposed state before each chunk
+                if (_disposed || _cancellationTokenSource.Token.IsCancellationRequested) return;
+                
                 var offset = (i - 1) * effectivePayloadSize;
                 var length = Math.Min(effectivePayloadSize, data.Length - offset);
                 var chunkData = new byte[length];
@@ -210,6 +222,10 @@ namespace WebViewRPC
             if (!_disposed)
             {
                 _disposed = true;
+                
+                // Cancel all operations
+                _cancellationTokenSource?.Cancel();
+                _cancellationTokenSource?.Dispose();
                 
                 _bridge.OnMessageReceived -= OnBridgeMessage;
                 

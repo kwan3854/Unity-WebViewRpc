@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using Google.Protobuf;
 using UnityEngine;
@@ -11,6 +12,7 @@ namespace WebViewRPC
         private readonly IWebViewBridge _bridge;
         private readonly ChunkAssembler _chunkAssembler = new();
         private bool _disposed;
+        private CancellationTokenSource _cancellationTokenSource = new();
 
         /// <summary>
         /// You can add multiple services to the server.
@@ -72,7 +74,7 @@ namespace WebViewRPC
                         
                         if (completeEnvelope.IsRequest)
                         {
-                            await HandleRequestAsync(completeEnvelope);
+                            await HandleRequestAsync(completeEnvelope, _cancellationTokenSource.Token);
                         }
                     }
                     // else: waiting for more chunks
@@ -82,9 +84,14 @@ namespace WebViewRPC
                     // Process as regular message
                     if (envelope.IsRequest)
                     {
-                        await HandleRequestAsync(envelope);
+                        await HandleRequestAsync(envelope, _cancellationTokenSource.Token);
                     }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when disposing
+                Debug.Log($"RPC operation cancelled for disposed server");
             }
             catch (Exception ex)
             {
@@ -92,8 +99,11 @@ namespace WebViewRPC
             }
         }
 
-        private async UniTask HandleRequestAsync(RpcEnvelope requestEnvelope)
+        private async UniTask HandleRequestAsync(RpcEnvelope requestEnvelope, CancellationToken cancellationToken)
         {
+            // Check disposed state before processing
+            if (_disposed || cancellationToken.IsCancellationRequested) return;
+            
             ByteString responsePayload = null;
             string error = null;
 
@@ -112,6 +122,9 @@ namespace WebViewRPC
             {
                 error = ex.Message;
             }
+
+            // Check disposed state before sending response
+            if (_disposed || cancellationToken.IsCancellationRequested) return;
 
             // Send response
             // Check if this is an error response
@@ -148,7 +161,7 @@ namespace WebViewRPC
                 {
                     // Send as chunks
                     await SendChunkedMessage(requestEnvelope.RequestId, requestEnvelope.Method, 
-                        responseBytes, false, null);
+                        responseBytes, false, null, cancellationToken);
                 }
                 else
                 {
@@ -184,14 +197,20 @@ namespace WebViewRPC
         }
         
         private async UniTask SendChunkedMessage(string requestId, string method, byte[] data, 
-            bool isRequest, string error = null)
+            bool isRequest, string error = null, CancellationToken cancellationToken = default)
         {
+            // Check disposed state before starting
+            if (_disposed || cancellationToken.IsCancellationRequested) return;
+            
             var chunkSetId = $"{requestId}_{Guid.NewGuid():N}";
             int effectivePayloadSize = WebViewRpcConfiguration.GetEffectivePayloadSize();
             var totalChunks = (int)Math.Ceiling((double)data.Length / effectivePayloadSize);
             
             for (int i = 1; i <= totalChunks; i++)
             {
+                // Check disposed state before each chunk
+                if (_disposed || cancellationToken.IsCancellationRequested) return;
+                
                 var offset = (i - 1) * effectivePayloadSize;
                 var length = Math.Min(effectivePayloadSize, data.Length - offset);
                 var chunkData = new byte[length];
@@ -231,6 +250,11 @@ namespace WebViewRPC
             if (!_disposed)
             {
                 _disposed = true;
+                
+                // Cancel all pending operations
+                _cancellationTokenSource?.Cancel();
+                _cancellationTokenSource?.Dispose();
+                
                 _bridge.OnMessageReceived -= OnBridgeMessage;
                 
                 // Note: Do not dispose the bridge here as it may be shared
