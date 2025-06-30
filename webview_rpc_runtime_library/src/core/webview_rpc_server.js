@@ -99,7 +99,26 @@ export class WebViewRpcServer {
         }
 
         // Send response
-        if (responsePayload && !error) {
+        // Check if this is an error response
+        if (error) {
+            // Error response
+            const responseEnvelope = {
+                requestId: requestEnvelope.requestId,
+                isRequest: false,
+                method: requestEnvelope.method,
+                error: error
+            };
+            
+            // Include payload if available (even if empty)
+            if (responsePayload) {
+                responseEnvelope.payload = responsePayload;
+            }
+            
+            const responseBytes = encodeRpcEnvelope(responseEnvelope);
+            const responseBase64 = uint8ArrayToBase64(responseBytes);
+            this._bridge.sendMessage(responseBase64);
+        } else if (responsePayload) {
+            // Success response
             // Check if chunking is needed
             const effectivePayloadSize = WebViewRpcConfiguration.getEffectivePayloadSize();
             if (WebViewRpcConfiguration.enableChunking && 
@@ -110,7 +129,7 @@ export class WebViewRpcServer {
                     requestEnvelope.method, 
                     responsePayload, 
                     false, 
-                    error
+                    null
                 );
             } else {
                 // Send as single message
@@ -126,12 +145,12 @@ export class WebViewRpcServer {
                 this._bridge.sendMessage(responseBase64);
             }
         } else {
-            // Error response
+            // No payload and no error - this is an error condition
             const responseEnvelope = {
                 requestId: requestEnvelope.requestId,
                 isRequest: false,
                 method: requestEnvelope.method,
-                error: error || 'Unknown error'
+                error: 'Method returned null without error'
             };
             
             const responseBytes = encodeRpcEnvelope(responseEnvelope);
@@ -175,11 +194,6 @@ export class WebViewRpcServer {
             const bytes = encodeRpcEnvelope(envelope);
             const base64 = uint8ArrayToBase64(bytes);
             this._bridge.sendMessage(base64);
-
-            // Optional: Add small delay between chunks
-            if (i < totalChunks) {
-                await new Promise(resolve => setTimeout(resolve, 1));
-            }
         }
     }
 
