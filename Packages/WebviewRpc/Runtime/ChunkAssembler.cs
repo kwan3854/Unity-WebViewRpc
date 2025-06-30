@@ -16,19 +16,27 @@ namespace WebViewRPC
             public int TotalChunks { get; set; }
             public int OriginalSize { get; set; }
             public DateTime LastActivity { get; set; }
+            public string RequestId { get; set; }
         }
         
         private readonly Dictionary<string, ChunkSet> _chunkSets = new();
         private readonly object _lock = new object();
-        
-        // Maximum number of concurrent chunk sets to prevent memory issues
-        private const int MaxConcurrentChunkSets = 100;
         
         /// <summary>
         /// Try to reassemble chunks. Returns null if not all chunks received yet.
         /// </summary>
         public byte[] TryAssemble(RpcEnvelope envelope)
         {
+            return TryAssemble(envelope, out _);
+        }
+        
+        /// <summary>
+        /// Try to reassemble chunks. Returns null if not all chunks received yet.
+        /// </summary>
+        public byte[] TryAssemble(RpcEnvelope envelope, out List<string> timedOutRequestIds)
+        {
+            timedOutRequestIds = new List<string>();
+            
             if (envelope.ChunkInfo == null)
             {
                 // Not a chunked message
@@ -41,7 +49,7 @@ namespace WebViewRPC
                 
                 // Check if we've reached the maximum number of chunk sets
                 if (!_chunkSets.ContainsKey(chunkInfo.ChunkSetId) && 
-                    _chunkSets.Count >= MaxConcurrentChunkSets)
+                    _chunkSets.Count >= WebViewRpcConfiguration.MaxConcurrentChunkSets)
                 {
                     // Remove the oldest chunk set
                     var oldestKey = _chunkSets
@@ -49,7 +57,7 @@ namespace WebViewRPC
                         .First()
                         .Key;
                     _chunkSets.Remove(oldestKey);
-                    Debug.LogWarning($"Maximum chunk sets reached. Removed oldest chunk set {oldestKey}");
+                    Debug.LogWarning($"Maximum chunk sets reached ({WebViewRpcConfiguration.MaxConcurrentChunkSets}). Removed oldest chunk set {oldestKey}");
                 }
                 
                 if (!_chunkSets.TryGetValue(chunkInfo.ChunkSetId, out var chunkSet))
@@ -58,7 +66,8 @@ namespace WebViewRPC
                     {
                         TotalChunks = chunkInfo.TotalChunks,
                         OriginalSize = chunkInfo.OriginalSize,
-                        LastActivity = DateTime.UtcNow
+                        LastActivity = DateTime.UtcNow,
+                        RequestId = envelope.RequestId
                     };
                     _chunkSets[chunkInfo.ChunkSetId] = chunkSet;
                 }
@@ -103,17 +112,18 @@ namespace WebViewRPC
                 var cutoff = DateTime.UtcNow.AddSeconds(-WebViewRpcConfiguration.ChunkTimeoutSeconds);
                 var toRemove = _chunkSets
                     .Where(kvp => kvp.Value.LastActivity < cutoff)
-                    .Select(kvp => kvp.Key)
                     .ToList();
                 
-                foreach (var key in toRemove)
+                foreach (var kvp in toRemove)
                 {
-                    _chunkSets.Remove(key);
-                    Debug.LogWarning($"Removed incomplete chunk set {key} due to timeout");
+                    timedOutRequestIds.Add(kvp.Value.RequestId);
+                    _chunkSets.Remove(kvp.Key);
+                    Debug.LogWarning($"Removed incomplete chunk set {kvp.Key} for request {kvp.Value.RequestId} due to timeout");
                 }
                 
                 return null; // Not all chunks received yet
             }
         }
     }
+} 
 } 

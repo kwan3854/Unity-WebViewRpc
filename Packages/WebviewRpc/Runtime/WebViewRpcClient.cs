@@ -137,7 +137,24 @@ namespace WebViewRPC
                 if (envelope.ChunkInfo != null)
                 {
                     // Try to reassemble
-                    var completeData = _chunkAssembler.TryAssemble(envelope);
+                    var completeData = _chunkAssembler.TryAssemble(envelope, out var timedOutRequestIds);
+                    
+                    // Handle timed out requests
+                    foreach (var requestId in timedOutRequestIds)
+                    {
+                        UniTaskCompletionSource<RpcEnvelope> tcs = null;
+                        lock (_pendingRequestsLock)
+                        {
+                            _pendingRequests.TryGetValue(requestId, out tcs);
+                            _pendingRequests.Remove(requestId);
+                        }
+                        
+                        if (tcs != null)
+                        {
+                            tcs.TrySetException(new TimeoutException($"Chunk reassembly timeout for request {requestId} after {WebViewRpcConfiguration.ChunkTimeoutSeconds} seconds"));
+                        }
+                    }
+                    
                     if (completeData != null)
                     {
                         // Create a new envelope with the complete data

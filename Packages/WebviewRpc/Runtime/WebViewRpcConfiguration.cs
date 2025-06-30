@@ -7,6 +7,7 @@ namespace WebViewRPC
     {
         private static int _maxChunkSize = 256 * 1024;
         private static int _chunkTimeoutSeconds = 30;
+        private static int _maxConcurrentChunkSets = 100;
         
         /// <summary>
         /// Estimated RPC envelope overhead in bytes when chunking
@@ -112,6 +113,28 @@ namespace WebViewRPC
         public static bool IsChunkSizeValid()
         {
             return GetEffectivePayloadSize() >= 100;
+        }
+        
+        /// <summary>
+        /// Maximum number of concurrent chunk sets allowed (default: 100)
+        /// This prevents memory exhaustion from too many incomplete chunk sets
+        /// Minimum: 10, Maximum: 1000
+        /// </summary>
+        public static int MaxConcurrentChunkSets
+        {
+            get => _maxConcurrentChunkSets;
+            set
+            {
+                if (value < 10)
+                {
+                    throw new System.ArgumentException($"MaxConcurrentChunkSets must be at least 10. Provided: {value}");
+                }
+                if (value > 1000)
+                {
+                    throw new System.ArgumentException($"MaxConcurrentChunkSets cannot exceed 1000. Provided: {value}");
+                }
+                _maxConcurrentChunkSets = value;
+            }
         }
     }
 } 
