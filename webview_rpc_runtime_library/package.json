@@ -1,6 +1,6 @@
 {
   "name": "app-webview-rpc",
-  "version": "2.0.0",
+  "version": "2.0.5",
   "type": "module",
   "description": "WebView RPC provides an abstraction layer that allows communication between the App (e.g. Unity C#) and WebView (HTML, JS) using protobuf, similar to gRPC.",
   "main": "./dist/cjs/index.js",
@@ -24,6 +24,7 @@
     "build:cjs": "tsc -p tsconfig-cjs.json"
   },
   "devDependencies": {
+    "http-server": "^14.1.1",
     "rimraf": "^5.0.0",
     "typescript": "^5.0.0"
   },

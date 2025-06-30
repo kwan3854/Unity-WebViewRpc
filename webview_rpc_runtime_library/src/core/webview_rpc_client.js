@@ -69,8 +69,8 @@ export class WebViewRpcClient {
         const chunkSetId = `${requestId}_${crypto.randomUUID()}`;
         const totalChunks = Math.ceil(data.length / WebViewRpcConfiguration.maxChunkSize);
 
-        for (let i = 0; i < totalChunks; i++) {
-            const offset = i * WebViewRpcConfiguration.maxChunkSize;
+        for (let i = 1; i <= totalChunks; i++) {
+            const offset = (i - 1) * WebViewRpcConfiguration.maxChunkSize;
             const length = Math.min(WebViewRpcConfiguration.maxChunkSize, data.length - offset);
             const chunkData = data.slice(offset, offset + length);
 
@@ -92,7 +92,7 @@ export class WebViewRpcClient {
             this._bridge.sendMessage(base64);
 
             // Optional: Add small delay between chunks
-            if (i < totalChunks - 1) {
+            if (i < totalChunks) {
                 await new Promise(resolve => setTimeout(resolve, 1));
             }
         }

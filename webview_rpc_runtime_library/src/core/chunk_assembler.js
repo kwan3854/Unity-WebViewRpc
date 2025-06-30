@@ -32,7 +32,8 @@ export class ChunkAssembler {
         const chunkSet = this._chunkSets.get(chunkSetId);
         
         // Add chunk
-        chunkSet.chunks.set(chunkInfo.chunkIndex, envelope.payload);
+        const chunkIndex = Number(chunkInfo.chunkIndex);
+        chunkSet.chunks.set(chunkIndex, envelope.payload);
         chunkSet.lastActivity = Date.now();
 
         // Check if all chunks received
@@ -41,10 +42,11 @@ export class ChunkAssembler {
             const result = new Uint8Array(chunkSet.originalSize);
             let offset = 0;
 
-            for (let i = 0; i < chunkSet.totalChunks; i++) {
+            for (let i = 1; i <= chunkSet.totalChunks; i++) {
                 const chunk = chunkSet.chunks.get(i);
                 if (!chunk) {
                     console.error(`Missing chunk ${i} in set ${chunkSetId}`);
+                    console.error(`Available chunks:`, Array.from(chunkSet.chunks.keys()));
                     return null;
                 }
 

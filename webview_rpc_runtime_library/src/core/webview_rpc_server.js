@@ -147,8 +147,8 @@ export class WebViewRpcServer {
         const chunkSetId = `${requestId}_${crypto.randomUUID()}`;
         const totalChunks = Math.ceil(data.length / WebViewRpcConfiguration.maxChunkSize);
 
-        for (let i = 0; i < totalChunks; i++) {
-            const offset = i * WebViewRpcConfiguration.maxChunkSize;
+        for (let i = 1; i <= totalChunks; i++) {
+            const offset = (i - 1) * WebViewRpcConfiguration.maxChunkSize;
             const length = Math.min(WebViewRpcConfiguration.maxChunkSize, data.length - offset);
             const chunkData = data.slice(offset, offset + length);
 
@@ -166,7 +166,7 @@ export class WebViewRpcServer {
             };
 
             // Only set error on the first chunk
-            if (i === 0 && error) {
+            if (i === 1 && error) {
                 envelope.error = error;
             }
 
@@ -175,7 +175,7 @@ export class WebViewRpcServer {
             this._bridge.sendMessage(base64);
 
             // Optional: Add small delay between chunks
-            if (i < totalChunks - 1) {
+            if (i < totalChunks) {
                 await new Promise(resolve => setTimeout(resolve, 1));
             }
         }
