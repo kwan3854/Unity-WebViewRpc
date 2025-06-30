@@ -141,9 +141,14 @@ namespace WebViewRPC
                             RequestId = envelope.RequestId,
                             IsRequest = envelope.IsRequest,
                             Method = envelope.Method,
-                            Payload = ByteString.CopyFrom(completeData),
-                            Error = envelope.Error
+                            Payload = ByteString.CopyFrom(completeData)
                         };
+                        
+                        // Only set Error if it's not null or empty
+                        if (!string.IsNullOrEmpty(envelope.Error))
+                        {
+                            completeEnvelope.Error = envelope.Error;
+                        }
                         
                         ProcessCompleteEnvelope(completeEnvelope);
                     }
