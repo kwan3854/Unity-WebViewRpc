@@ -119,8 +119,9 @@ namespace WebViewRPC
                 var responseBytes = responsePayload.ToByteArray();
                 
                 // Check if chunking is needed
+                int effectivePayloadSize = WebViewRpcConfiguration.GetEffectivePayloadSize();
                 if (WebViewRpcConfiguration.EnableChunking && 
-                    responseBytes.Length > WebViewRpcConfiguration.MaxChunkSize)
+                    responseBytes.Length > effectivePayloadSize)
                 {
                     // Send as chunks
                     await SendChunkedMessage(requestEnvelope.RequestId, requestEnvelope.Method, 
@@ -169,12 +170,13 @@ namespace WebViewRPC
             bool isRequest, string error = null)
         {
             var chunkSetId = $"{requestId}_{Guid.NewGuid():N}";
-            var totalChunks = (int)Math.Ceiling((double)data.Length / WebViewRpcConfiguration.MaxChunkSize);
+            int effectivePayloadSize = WebViewRpcConfiguration.GetEffectivePayloadSize();
+            var totalChunks = (int)Math.Ceiling((double)data.Length / effectivePayloadSize);
             
             for (int i = 1; i <= totalChunks; i++)
             {
-                var offset = (i - 1) * WebViewRpcConfiguration.MaxChunkSize;
-                var length = Math.Min(WebViewRpcConfiguration.MaxChunkSize, data.Length - offset);
+                var offset = (i - 1) * effectivePayloadSize;
+                var length = Math.Min(effectivePayloadSize, data.Length - offset);
                 var chunkData = new byte[length];
                 Array.Copy(data, offset, chunkData, 0, length);
                 

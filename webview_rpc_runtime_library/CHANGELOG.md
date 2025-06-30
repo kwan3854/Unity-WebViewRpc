@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.6] - 2025-01-22
+
+### Added
+- Smart chunk size calculation that accounts for RPC envelope and Base64 encoding overhead
+- `getEffectivePayloadSize()` method to calculate actual usable payload size
+- `getMinimumSafeChunkSize()` method to determine minimum viable chunk size
+- `isChunkSizeValid()` method to validate configuration
+- Dynamic minimum chunk size validation based on overhead calculations
+- Detailed logging when chunk size results in small effective payload
+
+### Changed
+- **BREAKING**: `maxChunkSize` now represents the final Base64-encoded message size (not the raw payload size)
+- Improved chunk size validation with informative error messages
+- Minimum chunk size is now dynamically calculated (~335 bytes) instead of fixed 1KB
+- Added warnings when effective payload size is less than 1KB
+
+### Fixed
+- Fixed issue where actual transmitted size could exceed configured `maxChunkSize` due to overhead
+- Fixed inefficient chunking when using small chunk sizes
+
 ## [1.0.4] - 2025-06-24
 
 ### Fixed
