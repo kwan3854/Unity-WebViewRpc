@@ -4,6 +4,7 @@
 export const WebViewRpcConfiguration = {
     _maxChunkSize: 256 * 1024,
     _chunkTimeoutSeconds: 30,
+    _maxConcurrentChunkSets: 100,
     
     /**
      * Estimated RPC envelope overhead in bytes when chunking
@@ -101,5 +102,24 @@ export const WebViewRpcConfiguration = {
      */
     isChunkSizeValid() {
         return this.getEffectivePayloadSize() >= 100;
+    },
+    
+    /**
+     * Maximum number of concurrent chunk sets allowed (default: 100)
+     * This prevents memory exhaustion from too many incomplete chunk sets
+     * Minimum: 10, Maximum: 1000
+     */
+    get maxConcurrentChunkSets() {
+        return this._maxConcurrentChunkSets;
+    },
+    
+    set maxConcurrentChunkSets(value) {
+        if (value < 10) {
+            throw new Error(`maxConcurrentChunkSets must be at least 10. Provided: ${value}`);
+        }
+        if (value > 1000) {
+            throw new Error(`maxConcurrentChunkSets cannot exceed 1000. Provided: ${value}`);
+        }
+        this._maxConcurrentChunkSets = value;
     }
 }; 

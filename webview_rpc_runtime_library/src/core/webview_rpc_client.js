@@ -109,7 +109,17 @@ export class WebViewRpcClient {
             // Check if this is a chunked message
             if (envelope.chunkInfo) {
                 // Try to reassemble
-                const completeData = this._chunkAssembler.tryAssemble(envelope);
+                const { data: completeData, timedOutRequestIds } = this._chunkAssembler.tryAssemble(envelope);
+                
+                // Handle timed out requests
+                for (const requestId of timedOutRequestIds) {
+                    const pending = this._pendingRequests.get(requestId);
+                    if (pending) {
+                        this._pendingRequests.delete(requestId);
+                        pending.reject(new Error(`Chunk reassembly timeout for request ${requestId} after ${WebViewRpcConfiguration.chunkTimeoutSeconds} seconds`));
+                    }
+                }
+                
                 if (completeData) {
                     // Create a new envelope with the complete data
                     const completeEnvelope = {

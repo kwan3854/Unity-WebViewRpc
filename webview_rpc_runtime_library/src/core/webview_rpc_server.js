@@ -65,7 +65,13 @@ export class WebViewRpcServer {
             // Check if this is a chunked message
             if (envelope.chunkInfo) {
                 // Try to reassemble
-                const completeData = this._chunkAssembler.tryAssemble(envelope);
+                const { data: completeData, timedOutRequestIds } = this._chunkAssembler.tryAssemble(envelope);
+                
+                // Log timed out requests (server doesn't need to handle them specifically)
+                for (const requestId of timedOutRequestIds) {
+                    console.warn(`Request ${requestId} timed out during chunk reassembly`);
+                }
+                
                 if (completeData) {
                     // Create a new envelope with the complete data
                     const completeEnvelope = {

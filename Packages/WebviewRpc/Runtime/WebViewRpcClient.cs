@@ -18,6 +18,7 @@ namespace WebViewRPC
         private int _requestIdCounter = 1;
         private readonly object _pendingRequestsLock = new object();
         private bool _disposed;
+        private CancellationTokenSource _cancellationTokenSource = new();
 
         public WebViewRpcClient(IWebViewBridge bridge)
         {
@@ -33,6 +34,11 @@ namespace WebViewRPC
         public async UniTask<TResponse> CallMethod<TResponse>(string method, IMessage request)
             where TResponse : IMessage<TResponse>, new()
         {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(WebViewRpcClient), "Cannot call method on disposed client");
+            }
+            
             var requestId = Interlocked.Increment(ref _requestIdCounter).ToString();
             var requestBytes = request.ToByteArray();
             
@@ -90,12 +96,18 @@ namespace WebViewRPC
         
         private async UniTask SendChunkedMessage(string requestId, string method, byte[] data, bool isRequest)
         {
+            // Check disposed state
+            if (_disposed || _cancellationTokenSource.Token.IsCancellationRequested) return;
+            
             var chunkSetId = $"{requestId}_{Guid.NewGuid():N}";
             int effectivePayloadSize = WebViewRpcConfiguration.GetEffectivePayloadSize();
             var totalChunks = (int)Math.Ceiling((double)data.Length / effectivePayloadSize);
             
             for (int i = 1; i <= totalChunks; i++)
             {
+                // Check disposed state before each chunk
+                if (_disposed || _cancellationTokenSource.Token.IsCancellationRequested) return;
+                
                 var offset = (i - 1) * effectivePayloadSize;
                 var length = Math.Min(effectivePayloadSize, data.Length - offset);
                 var chunkData = new byte[length];
@@ -137,7 +149,24 @@ namespace WebViewRPC
                 if (envelope.ChunkInfo != null)
                 {
                     // Try to reassemble
-                    var completeData = _chunkAssembler.TryAssemble(envelope);
+                    var completeData = _chunkAssembler.TryAssemble(envelope, out var timedOutRequestIds);
+                    
+                    // Handle timed out requests
+                    foreach (var requestId in timedOutRequestIds)
+                    {
+                        UniTaskCompletionSource<RpcEnvelope> tcs = null;
+                        lock (_pendingRequestsLock)
+                        {
+                            _pendingRequests.TryGetValue(requestId, out tcs);
+                            _pendingRequests.Remove(requestId);
+                        }
+                        
+                        if (tcs != null)
+                        {
+                            tcs.TrySetException(new TimeoutException($"Chunk reassembly timeout for request {requestId} after {WebViewRpcConfiguration.ChunkTimeoutSeconds} seconds"));
+                        }
+                    }
+                    
                     if (completeData != null)
                     {
                         // Create a new envelope with the complete data
@@ -192,6 +221,12 @@ namespace WebViewRPC
         {
             if (!_disposed)
             {
+                _disposed = true;
+                
+                // Cancel all operations
+                _cancellationTokenSource?.Cancel();
+                _cancellationTokenSource?.Dispose();
+                
                 _bridge.OnMessageReceived -= OnBridgeMessage;
                 
                 // Cancel all pending requests
@@ -204,7 +239,8 @@ namespace WebViewRPC
                     _pendingRequests.Clear();
                 }
                 
-                _disposed = true;
+                // Note: Do not dispose the bridge here as it may be shared
+                // The owner of the bridge should dispose it
             }
         }
     }

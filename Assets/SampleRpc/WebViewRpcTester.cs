@@ -13,6 +13,9 @@ namespace SampleRpc
     {
         [SerializeField] private CanvasWebViewPrefab webViewPrefab;
         private HelloServiceClient _client;
+        private WebViewRpcServer _server;
+        private WebViewRpcClient _rpcClient;
+        private IWebViewBridge _bridge;
 
         private void Awake()
         {
@@ -45,18 +48,14 @@ namespace SampleRpc
             await InitializeWebView(webViewPrefab);
         
             // Initialize C# Server to handle JS -> C# RPC
-            var bridge = new ViewplexWebViewBridge(webViewPrefab);
-            var server = new WebViewRpcServer(bridge);
-            server.Services.Add(HelloService.BindService(new HelloWorldService()));
-            server.Start();
+            _bridge = new ViewplexWebViewBridge(webViewPrefab);
+            _server = new WebViewRpcServer(_bridge);
+            _server.Services.Add(HelloService.BindService(new HelloWorldService()));
+            _server.Start();
         
             // Initialize C# Client to handle C# -> JS RPC
-            var rpcClient = new WebViewRpcClient(bridge);
-            _client = new HelloServiceClient(rpcClient);
-        
-            // Run bidirectional test
-            await UniTask.Delay(3000); // Wait for web to be ready
-            // RunBidirectionalChunkingTest();
+            _rpcClient = new WebViewRpcClient(_bridge);
+            _client = new HelloServiceClient(_rpcClient);
         }
 
         private async void RunBidirectionalChunkingTest()
@@ -169,6 +168,26 @@ namespace SampleRpc
                 Debug.Log("E key pressed, sending error test message to web view.");
                 RunErrorTest();
             }
+        }
+        
+        private void OnDestroy()
+        {
+            Debug.Log("[WebViewRpcTester] OnDestroy - Cleaning up RPC components");
+            
+            // WebView가 이미 파괴되었을 수 있으므로, 먼저 Bridge를 dispose
+            _bridge?.Dispose();
+            _bridge = null;
+            
+            // 그 다음 RPC 컴포넌트들을 정리
+            _client = null;
+            
+            _rpcClient?.Dispose();
+            _rpcClient = null;
+            
+            _server?.Dispose();
+            _server = null;
+            
+            Debug.Log("[WebViewRpcTester] OnDestroy - Cleanup complete");
         }
     }
 }
