@@ -209,6 +209,8 @@ namespace WebViewRPC
         {
             if (!_disposed)
             {
+                _disposed = true;
+                
                 _bridge.OnMessageReceived -= OnBridgeMessage;
                 
                 // Cancel all pending requests
@@ -221,7 +223,8 @@ namespace WebViewRPC
                     _pendingRequests.Clear();
                 }
                 
-                _disposed = true;
+                // Note: Do not dispose the bridge here as it may be shared
+                // The owner of the bridge should dispose it
             }
         }
     }

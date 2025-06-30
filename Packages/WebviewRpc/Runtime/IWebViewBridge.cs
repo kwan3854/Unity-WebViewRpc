@@ -7,7 +7,7 @@ namespace WebViewRPC
     /// - SendMessageToWeb: C# -> JS send string
     /// - OnMessageReceived: JS -> C# receive string
     /// </summary>
-    public interface IWebViewBridge
+    public interface IWebViewBridge : IDisposable
     {
         /// <summary>
         /// C# to WebView send string

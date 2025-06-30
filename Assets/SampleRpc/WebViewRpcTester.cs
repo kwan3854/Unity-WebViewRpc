@@ -13,6 +13,9 @@ namespace SampleRpc
     {
         [SerializeField] private CanvasWebViewPrefab webViewPrefab;
         private HelloServiceClient _client;
+        private WebViewRpcServer _server;
+        private WebViewRpcClient _rpcClient;
+        private IWebViewBridge _bridge;
 
         private void Awake()
         {
@@ -45,14 +48,14 @@ namespace SampleRpc
             await InitializeWebView(webViewPrefab);
         
             // Initialize C# Server to handle JS -> C# RPC
-            var bridge = new ViewplexWebViewBridge(webViewPrefab);
-            var server = new WebViewRpcServer(bridge);
-            server.Services.Add(HelloService.BindService(new HelloWorldService()));
-            server.Start();
+            _bridge = new ViewplexWebViewBridge(webViewPrefab);
+            _server = new WebViewRpcServer(_bridge);
+            _server.Services.Add(HelloService.BindService(new HelloWorldService()));
+            _server.Start();
         
             // Initialize C# Client to handle C# -> JS RPC
-            var rpcClient = new WebViewRpcClient(bridge);
-            _client = new HelloServiceClient(rpcClient);
+            _rpcClient = new WebViewRpcClient(_bridge);
+            _client = new HelloServiceClient(_rpcClient);
         
             // Run bidirectional test
             await UniTask.Delay(3000); // Wait for web to be ready
@@ -169,6 +172,26 @@ namespace SampleRpc
                 Debug.Log("E key pressed, sending error test message to web view.");
                 RunErrorTest();
             }
+        }
+        
+        private void OnDestroy()
+        {
+            Debug.Log("[WebViewRpcTester] OnDestroy - Cleaning up RPC components");
+            
+            // Dispose in reverse order of creation
+            _client = null;
+            
+            _rpcClient?.Dispose();
+            _rpcClient = null;
+            
+            _server?.Dispose();
+            _server = null;
+            
+            // Dispose the bridge last
+            _bridge?.Dispose();
+            _bridge = null;
+            
+            Debug.Log("[WebViewRpcTester] OnDestroy - Cleanup complete");
         }
     }
 }

@@ -230,8 +230,11 @@ namespace WebViewRPC
         {
             if (!_disposed)
             {
-                _bridge.OnMessageReceived -= OnBridgeMessage;
                 _disposed = true;
+                _bridge.OnMessageReceived -= OnBridgeMessage;
+                
+                // Note: Do not dispose the bridge here as it may be shared
+                // The owner of the bridge should dispose it
             }
         }
     }
