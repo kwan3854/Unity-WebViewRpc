@@ -61,9 +61,14 @@ namespace WebViewRPC
                             RequestId = envelope.RequestId,
                             IsRequest = envelope.IsRequest,
                             Method = envelope.Method,
-                            Payload = ByteString.CopyFrom(completeData),
-                            Error = envelope.Error
+                            Payload = ByteString.CopyFrom(completeData)
                         };
+                        
+                        // Only set Error if it's not null or empty
+                        if (!string.IsNullOrEmpty(envelope.Error))
+                        {
+                            completeEnvelope.Error = envelope.Error;
+                        }
                         
                         if (completeEnvelope.IsRequest)
                         {
@@ -129,9 +134,14 @@ namespace WebViewRPC
                         RequestId = requestEnvelope.RequestId,
                         IsRequest = false,
                         Method = requestEnvelope.Method,
-                        Payload = responsePayload,
-                        Error = error
+                        Payload = responsePayload
                     };
+                    
+                    // Only set Error if it's not null or empty
+                    if (!string.IsNullOrEmpty(error))
+                    {
+                        responseEnvelope.Error = error;
+                    }
                     
                     var bytes = responseEnvelope.ToByteArray();
                     var base64 = Convert.ToBase64String(bytes);
