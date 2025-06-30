@@ -41,7 +41,8 @@ namespace WebViewRPC
                     chunkSet = new ChunkSet
                     {
                         TotalChunks = chunkInfo.TotalChunks,
-                        OriginalSize = chunkInfo.OriginalSize
+                        OriginalSize = chunkInfo.OriginalSize,
+                        LastActivity = DateTime.UtcNow
                     };
                     _chunkSets[chunkInfo.ChunkSetId] = chunkSet;
                 }
@@ -57,7 +58,7 @@ namespace WebViewRPC
                     var result = new byte[chunkSet.OriginalSize];
                     var offset = 0;
                     
-                    for (int i = 0; i < chunkSet.TotalChunks; i++)
+                    for (int i = 1; i <= chunkSet.TotalChunks; i++)
                     {
                         if (!chunkSet.Chunks.TryGetValue(i, out var chunk))
                         {

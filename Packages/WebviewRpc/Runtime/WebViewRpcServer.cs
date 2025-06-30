@@ -161,9 +161,9 @@ namespace WebViewRPC
             var chunkSetId = $"{requestId}_{Guid.NewGuid():N}";
             var totalChunks = (int)Math.Ceiling((double)data.Length / WebViewRpcConfiguration.MaxChunkSize);
             
-            for (int i = 0; i < totalChunks; i++)
+            for (int i = 1; i <= totalChunks; i++)
             {
-                var offset = i * WebViewRpcConfiguration.MaxChunkSize;
+                var offset = (i - 1) * WebViewRpcConfiguration.MaxChunkSize;
                 var length = Math.Min(WebViewRpcConfiguration.MaxChunkSize, data.Length - offset);
                 var chunkData = new byte[length];
                 Array.Copy(data, offset, chunkData, 0, length);
@@ -184,7 +184,7 @@ namespace WebViewRPC
                 };
                 
                 // Only set error on the first chunk
-                if (i == 0 && !string.IsNullOrEmpty(error))
+                if (i == 1 && !string.IsNullOrEmpty(error))
                 {
                     envelope.Error = error;
                 }
@@ -194,7 +194,7 @@ namespace WebViewRPC
                 _bridge.SendMessageToWeb(base64);
                 
                 // Optional: Add small delay between chunks to avoid overwhelming the bridge
-                if (i < totalChunks - 1)
+                if (i < totalChunks)
                 {
                     await UniTask.Delay(1);
                 }
