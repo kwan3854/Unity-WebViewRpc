@@ -21,6 +21,9 @@ namespace WebViewRPC
         private readonly Dictionary<string, ChunkSet> _chunkSets = new();
         private readonly object _lock = new object();
         
+        // Maximum number of concurrent chunk sets to prevent memory issues
+        private const int MaxConcurrentChunkSets = 100;
+        
         /// <summary>
         /// Try to reassemble chunks. Returns null if not all chunks received yet.
         /// </summary>
@@ -35,6 +38,19 @@ namespace WebViewRPC
             lock (_lock)
             {
                 var chunkInfo = envelope.ChunkInfo;
+                
+                // Check if we've reached the maximum number of chunk sets
+                if (!_chunkSets.ContainsKey(chunkInfo.ChunkSetId) && 
+                    _chunkSets.Count >= MaxConcurrentChunkSets)
+                {
+                    // Remove the oldest chunk set
+                    var oldestKey = _chunkSets
+                        .OrderBy(kvp => kvp.Value.LastActivity)
+                        .First()
+                        .Key;
+                    _chunkSets.Remove(oldestKey);
+                    Debug.LogWarning($"Maximum chunk sets reached. Removed oldest chunk set {oldestKey}");
+                }
                 
                 if (!_chunkSets.TryGetValue(chunkInfo.ChunkSetId, out var chunkSet))
                 {
@@ -83,8 +99,8 @@ namespace WebViewRPC
                     return result;
                 }
                 
-                // Cleanup old chunk sets (older than 30 seconds)
-                var cutoff = DateTime.UtcNow.AddSeconds(-30);
+                // Cleanup old chunk sets (older than configured timeout)
+                var cutoff = DateTime.UtcNow.AddSeconds(-WebViewRpcConfiguration.ChunkTimeoutSeconds);
                 var toRemove = _chunkSets
                     .Where(kvp => kvp.Value.LastActivity < cutoff)
                     .Select(kvp => kvp.Key)

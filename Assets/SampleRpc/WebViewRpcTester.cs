@@ -22,8 +22,25 @@ namespace SampleRpc
         private async void Start()
         {
             // Set chunking configuration
-            WebViewRpcConfiguration.MaxChunkSize = 900; // 900 bytes
-            WebViewRpcConfiguration.EnableChunking = true;
+            try
+            {
+                WebViewRpcConfiguration.MaxChunkSize = 900; // 900 bytes for testing
+                WebViewRpcConfiguration.EnableChunking = true;
+                WebViewRpcConfiguration.ChunkTimeoutSeconds = 10; // 10 seconds for testing
+                
+                Debug.Log($"[Configuration] MaxChunkSize: {WebViewRpcConfiguration.MaxChunkSize} bytes");
+                Debug.Log($"[Configuration] EnableChunking: {WebViewRpcConfiguration.EnableChunking}");
+                Debug.Log($"[Configuration] ChunkTimeoutSeconds: {WebViewRpcConfiguration.ChunkTimeoutSeconds} seconds");
+                Debug.Log($"[Configuration] EffectivePayloadSize: {WebViewRpcConfiguration.GetEffectivePayloadSize()} bytes");
+                Debug.Log($"[Configuration] MinimumSafeChunkSize: {WebViewRpcConfiguration.GetMinimumSafeChunkSize()} bytes");
+                Debug.Log($"[Configuration] IsChunkSizeValid: {WebViewRpcConfiguration.IsChunkSizeValid()}");
+            }
+            catch (ArgumentException ex)
+            {
+                Debug.LogError($"[Configuration Error] {ex.Message}");
+                // Use default values
+                WebViewRpcConfiguration.MaxChunkSize = 256 * 1024;
+            }
             
             await InitializeWebView(webViewPrefab);
         
