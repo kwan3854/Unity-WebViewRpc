@@ -68,12 +68,65 @@ namespace SampleRpc
                 var response = await _client.SayHello(request);
 
                 Debug.Log("--- [C# Client] Received Hello Response ---");
-                Debug.Log($"[C# Client] Response: Greeting='{response.Greeting}', EchoedMessage Length={response.EchoedMessage.Length}, ProcessedAt='{response.ProcessedAt}', OriginalSize={response.OriginalMessageSize}");
+                
+                // Check if response has error or data
+                if (response.ResultCase == HelloResponse.ResultOneofCase.Error)
+                {
+                    Debug.LogError($"[C# Client] Error Response: Code={response.Error.Code}, Message='{response.Error.Message}'");
+                }
+                else if (response.ResultCase == HelloResponse.ResultOneofCase.Data)
+                {
+                    Debug.Log($"[C# Client] Success Response:");
+                    Debug.Log($"  Greeting: '{response.Data.Greeting}'");
+                    Debug.Log($"  EchoedMessage Length: {response.Data.EchoedMessage.Length}");
+                    Debug.Log($"  ProcessedAt: '{response.Data.ProcessedAt}'");
+                    Debug.Log($"  OriginalSize: {response.Data.OriginalMessageSize}");
+                }
+                else
+                {
+                    Debug.LogWarning("[C# Client] Unknown response format");
+                }
                 Debug.Log("------------------------------------");
             }
             catch (System.Exception ex)
             {
-                Debug.LogError($"[C# Client] Error: {ex.Message}");
+                Debug.LogError($"[C# Client] Exception: {ex.Message}");
+            }
+        }
+
+        private async void RunErrorTest()
+        {
+            Debug.Log("--- [C# Client] Sending Error Test Request ---");
+
+            var request = new HelloRequest
+            {
+                Name = "error", // This will trigger error response
+                LongMessage = "test message",
+                RepeatCount = 1
+            };
+            
+            Debug.Log($"[C# Client] Request: Name='{request.Name}'");
+
+            try
+            {
+                var response = await _client.SayHello(request);
+
+                Debug.Log("--- [C# Client] Received Hello Response ---");
+                
+                // Check if response has error or data
+                if (response.ResultCase == HelloResponse.ResultOneofCase.Error)
+                {
+                    Debug.LogError($"[C# Client] Error Response: Code={response.Error.Code}, Message='{response.Error.Message}'");
+                }
+                else if (response.ResultCase == HelloResponse.ResultOneofCase.Data)
+                {
+                    Debug.Log($"[C# Client] Success Response: Greeting='{response.Data.Greeting}'");
+                }
+                Debug.Log("------------------------------------");
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[C# Client] Exception: {ex.Message}");
             }
         }
     
@@ -86,11 +139,18 @@ namespace SampleRpc
 
         private void Update()
         {
-            // if space key is pressed, send a message to the web view
+            // if space key is pressed, send a normal message to the web view
             if (Input.GetKeyDown(KeyCode.Space))
             {
                 Debug.Log("Space key pressed, sending message to web view.");
                 RunBidirectionalChunkingTest();
+            }
+            
+            // if E key is pressed, send an error test message
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                Debug.Log("E key pressed, sending error test message to web view.");
+                RunErrorTest();
             }
         }
     }

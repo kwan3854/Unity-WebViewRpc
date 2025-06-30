@@ -14,12 +14,29 @@ namespace SampleRpc
             // Simulate some async work
             await UniTask.Delay(TimeSpan.FromMilliseconds(50));
 
+            // Example: Return error for certain names
+            if (request.Name == "error")
+            {
+                return new HelloResponse
+                {
+                    Error = new HelloError
+                    {
+                        Code = 400,
+                        Message = "Invalid name: 'error' is not allowed"
+                    }
+                };
+            }
+
+            // Normal response
             return new HelloResponse
             {
-                Greeting = $"Hello from C#, {request.Name}!",
-                EchoedMessage = request.LongMessage, // Echo back for bidirectional chunking test
-                ProcessedAt = DateTime.UtcNow.ToString("o"),
-                OriginalMessageSize = request.LongMessage.Length
+                Data = new HelloData
+                {
+                    Greeting = $"Hello from C#, {request.Name}!",
+                    EchoedMessage = request.LongMessage, // Echo back for bidirectional chunking test
+                    ProcessedAt = DateTime.UtcNow.ToString("o"),
+                    OriginalMessageSize = request.LongMessage.Length
+                }
             };
         }
     }

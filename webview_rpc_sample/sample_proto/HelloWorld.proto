@@ -5,6 +5,12 @@ package helloworld;
 // C# namespace (when generating C# code)
 option csharp_namespace = "HelloWorld";
 
+// Common error structure for RPC responses
+message HelloError {
+  int32 code = 1;    // Application-specific error code
+  string message = 2; // Developer-facing error message
+}
+
 // Request message for chunking test
 message HelloRequest {
   string name = 1;
@@ -16,8 +22,8 @@ message HelloRequest {
   int32 repeatCount = 3;
 }
 
-// Response message
-message HelloResponse {
+// Response data
+message HelloData {
   string greeting = 1;
   
   // Echo back the long message to test bidirectional chunking
@@ -28,6 +34,14 @@ message HelloResponse {
   
   // Size information for debugging
   int32 originalMessageSize = 4;
+}
+
+// Response message with oneof
+message HelloResponse {
+  oneof result {
+    HelloData data = 1;
+    HelloError error = 2;
+  }
 }
 
 // HelloWorld service for testing RPC with chunking

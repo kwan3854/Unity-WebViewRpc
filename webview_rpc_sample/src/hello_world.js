@@ -1,3 +1,59 @@
+export function encodeHelloError(message) {
+  let bb = popByteBuffer();
+  _encodeHelloError(message, bb);
+  return toUint8Array(bb);
+}
+
+function _encodeHelloError(message, bb) {
+  // optional int32 code = 1;
+  let $code = message.code;
+  if ($code !== undefined) {
+    writeVarint32(bb, 8);
+    writeVarint64(bb, intToLong($code));
+  }
+
+  // optional string message = 2;
+  let $message = message.message;
+  if ($message !== undefined) {
+    writeVarint32(bb, 18);
+    writeString(bb, $message);
+  }
+}
+
+export function decodeHelloError(binary) {
+  return _decodeHelloError(wrapByteBuffer(binary));
+}
+
+function _decodeHelloError(bb) {
+  let message = {};
+
+  end_of_message: while (!isAtEnd(bb)) {
+    let tag = readVarint32(bb);
+
+    switch (tag >>> 3) {
+      case 0:
+        break end_of_message;
+
+      // optional int32 code = 1;
+      case 1: {
+        message.code = readVarint32(bb);
+        break;
+      }
+
+      // optional string message = 2;
+      case 2: {
+        message.message = readString(bb, readVarint32(bb));
+        break;
+      }
+
+      default:
+        skipUnknownField(bb, tag & 7);
+    }
+  }
+
+  return message;
+}
+
 export function encodeHelloRequest(message) {
   let bb = popByteBuffer();
   _encodeHelloRequest(message, bb);
@@ -67,13 +123,13 @@ function _decodeHelloRequest(bb) {
   return message;
 }
 
-export function encodeHelloResponse(message) {
+export function encodeHelloData(message) {
   let bb = popByteBuffer();
-  _encodeHelloResponse(message, bb);
+  _encodeHelloData(message, bb);
   return toUint8Array(bb);
 }
 
-function _encodeHelloResponse(message, bb) {
+function _encodeHelloData(message, bb) {
   // optional string greeting = 1;
   let $greeting = message.greeting;
   if ($greeting !== undefined) {
@@ -103,11 +159,11 @@ function _encodeHelloResponse(message, bb) {
   }
 }
 
-export function decodeHelloResponse(binary) {
-  return _decodeHelloResponse(wrapByteBuffer(binary));
+export function decodeHelloData(binary) {
+  return _decodeHelloData(wrapByteBuffer(binary));
 }
 
-function _decodeHelloResponse(bb) {
+function _decodeHelloData(bb) {
   let message = {};
 
   end_of_message: while (!isAtEnd(bb)) {
@@ -138,6 +194,74 @@ function _decodeHelloResponse(bb) {
       // optional int32 originalMessageSize = 4;
       case 4: {
         message.originalMessageSize = readVarint32(bb);
+        break;
+      }
+
+      default:
+        skipUnknownField(bb, tag & 7);
+    }
+  }
+
+  return message;
+}
+
+export function encodeHelloResponse(message) {
+  let bb = popByteBuffer();
+  _encodeHelloResponse(message, bb);
+  return toUint8Array(bb);
+}
+
+function _encodeHelloResponse(message, bb) {
+  // optional HelloData data = 1;
+  let $data = message.data;
+  if ($data !== undefined) {
+    writeVarint32(bb, 10);
+    let nested = popByteBuffer();
+    _encodeHelloData($data, nested);
+    writeVarint32(bb, nested.limit);
+    writeByteBuffer(bb, nested);
+    pushByteBuffer(nested);
+  }
+
+  // optional HelloError error = 2;
+  let $error = message.error;
+  if ($error !== undefined) {
+    writeVarint32(bb, 18);
+    let nested = popByteBuffer();
+    _encodeHelloError($error, nested);
+    writeVarint32(bb, nested.limit);
+    writeByteBuffer(bb, nested);
+    pushByteBuffer(nested);
+  }
+}
+
+export function decodeHelloResponse(binary) {
+  return _decodeHelloResponse(wrapByteBuffer(binary));
+}
+
+function _decodeHelloResponse(bb) {
+  let message = {};
+
+  end_of_message: while (!isAtEnd(bb)) {
+    let tag = readVarint32(bb);
+
+    switch (tag >>> 3) {
+      case 0:
+        break end_of_message;
+
+      // optional HelloData data = 1;
+      case 1: {
+        let limit = pushTemporaryLength(bb);
+        message.data = _decodeHelloData(bb);
+        bb.limit = limit;
+        break;
+      }
+
+      // optional HelloError error = 2;
+      case 2: {
+        let limit = pushTemporaryLength(bb);
+        message.error = _decodeHelloError(bb);
+        bb.limit = limit;
         break;
       }
 

@@ -53,11 +53,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const resp = await helloClient.SayHello(reqObj);
             
             log("--- Received Hello Response ---");
-            log(`Response from Unity:`);
-            log(`  Greeting: ${resp.greeting}`);
-            log(`  Echoed Message Length: ${resp.echoedMessage.length}`);
-            log(`  Processed At: ${resp.processedAt}`);
-            log(`  Original Message Size: ${resp.originalMessageSize}`);
+            
+            // Check if response is error or data
+            if (resp.error) {
+                log(`Error Response from Unity:`);
+                log(`  Code: ${resp.error.code}`);
+                log(`  Message: ${resp.error.message}`);
+            } else if (resp.data) {
+                log(`Success Response from Unity:`);
+                log(`  Greeting: ${resp.data.greeting}`);
+                log(`  Echoed Message Length: ${resp.data.echoedMessage.length}`);
+                log(`  Processed At: ${resp.data.processedAt}`);
+                log(`  Original Message Size: ${resp.data.originalMessageSize}`);
+            } else {
+                log(`Unknown response format`);
+            }
             log("--------------------------");
 
         } catch (err) {
@@ -65,4 +75,43 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Error: ", err);
         }
     });
+
+    // Test error response button
+    const errorBtn = document.createElement('button');
+    errorBtn.textContent = 'Test Error Response';
+    errorBtn.addEventListener('click', async () => {
+        try {
+            log("--- Sending Error Test Request ---");
+            
+            const reqObj = {
+                name: "error", // This will trigger error response
+                longMessage: "test",
+                repeatCount: 1
+            };
+            
+            log(`Request to Unity: { name: "${reqObj.name}" }`);
+            
+            const resp = await helloClient.SayHello(reqObj);
+            
+            log("--- Received Hello Response ---");
+            
+            // Check if response is error or data
+            if (resp.error) {
+                log(`Error Response from Unity:`);
+                log(`  Code: ${resp.error.code}`);
+                log(`  Message: ${resp.error.message}`);
+            } else if (resp.data) {
+                log(`Success Response from Unity:`);
+                log(`  Greeting: ${resp.data.greeting}`);
+            }
+            log("--------------------------");
+
+        } catch (err) {
+            log(`Error: ${err.message}`);
+            console.error("Error: ", err);
+        }
+    });
+    
+    // Add error test button to the page
+    document.querySelector('body').insertBefore(errorBtn, document.getElementById('logs'));
 });
