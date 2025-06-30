@@ -92,11 +92,6 @@ export class WebViewRpcClient {
             const bytes = encodeRpcEnvelope(envelope);
             const base64 = uint8ArrayToBase64(bytes);
             this._bridge.sendMessage(base64);
-
-            // Optional: Add small delay between chunks
-            if (i < totalChunks) {
-                await new Promise(resolve => setTimeout(resolve, 1));
-            }
         }
     }
 

@@ -114,8 +114,31 @@ namespace WebViewRPC
             }
 
             // Send response
-            if (responsePayload != null)
+            // Check if this is an error response
+            if (!string.IsNullOrEmpty(error))
             {
+                // Error response
+                var responseEnvelope = new RpcEnvelope
+                {
+                    RequestId = requestEnvelope.RequestId,
+                    IsRequest = false,
+                    Method = requestEnvelope.Method,
+                    Error = error
+                };
+                
+                // Include payload if available (even if empty)
+                if (responsePayload != null)
+                {
+                    responseEnvelope.Payload = responsePayload;
+                }
+                
+                var bytes = responseEnvelope.ToByteArray();
+                var base64 = Convert.ToBase64String(bytes);
+                _bridge.SendMessageToWeb(base64);
+            }
+            else if (responsePayload != null)
+            {
+                // Success response
                 var responseBytes = responsePayload.ToByteArray();
                 
                 // Check if chunking is needed
@@ -125,7 +148,7 @@ namespace WebViewRPC
                 {
                     // Send as chunks
                     await SendChunkedMessage(requestEnvelope.RequestId, requestEnvelope.Method, 
-                        responseBytes, false, error);
+                        responseBytes, false, null);
                 }
                 else
                 {
@@ -138,12 +161,6 @@ namespace WebViewRPC
                         Payload = responsePayload
                     };
                     
-                    // Only set Error if it's not null or empty
-                    if (!string.IsNullOrEmpty(error))
-                    {
-                        responseEnvelope.Error = error;
-                    }
-                    
                     var bytes = responseEnvelope.ToByteArray();
                     var base64 = Convert.ToBase64String(bytes);
                     _bridge.SendMessageToWeb(base64);
@@ -151,13 +168,13 @@ namespace WebViewRPC
             }
             else
             {
-                // Error response
+                // No payload and no error - this is an error condition
                 var responseEnvelope = new RpcEnvelope
                 {
                     RequestId = requestEnvelope.RequestId,
                     IsRequest = false,
                     Method = requestEnvelope.Method,
-                    Error = error ?? "Unknown error"
+                    Error = "Method returned null without error"
                 };
                 
                 var bytes = responseEnvelope.ToByteArray();
@@ -204,13 +221,9 @@ namespace WebViewRPC
                 var bytes = envelope.ToByteArray();
                 var base64 = Convert.ToBase64String(bytes);
                 _bridge.SendMessageToWeb(base64);
-                
-                // Optional: Add small delay between chunks to avoid overwhelming the bridge
-                if (i < totalChunks)
-                {
-                    await UniTask.Delay(1);
-                }
             }
+            
+            await UniTask.CompletedTask;
         }
 
         public void Dispose()

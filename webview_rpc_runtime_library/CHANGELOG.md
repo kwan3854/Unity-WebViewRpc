@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.7] - 2025-01-22
+
+### Fixed
+- Improved error handling: errors now take precedence over payload
+- Fixed issue where methods returning null without error were not properly handled
+- Removed unnecessary 1ms delay between chunks (chunk order is already guaranteed by index)
+
+### Changed
+- Error responses can now include payload data if available
+- Clearer error messages when methods return null without setting an error
+
 ## [2.0.6] - 2025-01-22
 
 ### Added
