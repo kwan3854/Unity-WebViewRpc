@@ -9,8 +9,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const bridge = new VuplexBridge();
 
     // 청킹 설정 (테스트를 위해 작은 값으로 설정)
-    WebViewRpcConfiguration.maxChunkSize = 900;
-    WebViewRpcConfiguration.enableChunking = true;
+    try {
+        WebViewRpcConfiguration.maxChunkSize = 900; // 900 bytes for testing
+        WebViewRpcConfiguration.enableChunking = true;
+        WebViewRpcConfiguration.chunkTimeoutSeconds = 10; // 10 seconds for testing
+        
+        console.log('[Configuration] maxChunkSize:', WebViewRpcConfiguration.maxChunkSize, 'bytes');
+        console.log('[Configuration] enableChunking:', WebViewRpcConfiguration.enableChunking);
+        console.log('[Configuration] chunkTimeoutSeconds:', WebViewRpcConfiguration.chunkTimeoutSeconds, 'seconds');
+        console.log('[Configuration] effectivePayloadSize:', WebViewRpcConfiguration.getEffectivePayloadSize(), 'bytes');
+        console.log('[Configuration] minimumSafeChunkSize:', WebViewRpcConfiguration.getMinimumSafeChunkSize(), 'bytes');
+        console.log('[Configuration] isChunkSizeValid:', WebViewRpcConfiguration.isChunkSizeValid());
+    } catch (error) {
+        console.error('[Configuration Error]', error.message);
+        // Use default values
+        WebViewRpcConfiguration.maxChunkSize = 256 * 1024;
+    }
     
     // 2) RpcClient 생성
     const rpcClient = new WebViewRpcClient(bridge);
@@ -114,4 +128,60 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Add error test button to the page
     document.querySelector('body').insertBefore(errorBtn, document.getElementById('logs'));
+    
+    // Test configuration validation button
+    const configTestBtn = document.createElement('button');
+    configTestBtn.textContent = 'Test Configuration Validation';
+    configTestBtn.addEventListener('click', () => {
+        log("--- Testing Configuration Validation ---");
+        
+        // Test 1: Too small chunk size
+        const minSize = WebViewRpcConfiguration.getMinimumSafeChunkSize();
+        try {
+            WebViewRpcConfiguration.maxChunkSize = minSize - 50; // Should fail
+            log(`ERROR: Setting maxChunkSize to ${minSize - 50} bytes should have failed!`);
+        } catch (error) {
+            log(`✓ Correctly rejected small chunk size: ${error.message}`);
+        }
+        
+        // Test 2: Too large chunk size
+        try {
+            WebViewRpcConfiguration.maxChunkSize = 11 * 1024 * 1024; // Should fail (> 10MB)
+            log("ERROR: Setting maxChunkSize to 11MB should have failed!");
+        } catch (error) {
+            log(`✓ Correctly rejected large chunk size: ${error.message}`);
+        }
+        
+        // Test 3: Too small timeout
+        try {
+            WebViewRpcConfiguration.chunkTimeoutSeconds = 3; // Should fail (< 5 seconds)
+            log("ERROR: Setting chunkTimeoutSeconds to 3 should have failed!");
+        } catch (error) {
+            log(`✓ Correctly rejected small timeout: ${error.message}`);
+        }
+        
+        // Test 4: Too large timeout
+        try {
+            WebViewRpcConfiguration.chunkTimeoutSeconds = 400; // Should fail (> 300 seconds)
+            log("ERROR: Setting chunkTimeoutSeconds to 400 should have failed!");
+        } catch (error) {
+            log(`✓ Correctly rejected large timeout: ${error.message}`);
+        }
+        
+        // Restore valid configuration
+        WebViewRpcConfiguration.maxChunkSize = 900;
+        WebViewRpcConfiguration.chunkTimeoutSeconds = 10;
+        log("Configuration restored to valid values");
+        
+        // Show actual effective sizes
+        log(`\nWith maxChunkSize=900 bytes:`);
+        log(`  - Effective payload size: ${WebViewRpcConfiguration.getEffectivePayloadSize()} bytes`);
+        log(`  - Envelope overhead: ~${WebViewRpcConfiguration.estimatedEnvelopeOverhead} bytes`);
+        log(`  - Base64 overhead: ${Math.round((WebViewRpcConfiguration.base64OverheadRatio - 1) * 100)}%`);
+        log(`  - This means actual payload will be chunked at ${WebViewRpcConfiguration.getEffectivePayloadSize()} bytes`);
+        log("--------------------------");
+    });
+    
+    // Add config test button to the page
+    document.querySelector('body').insertBefore(configTestBtn, document.getElementById('logs'));
 });
