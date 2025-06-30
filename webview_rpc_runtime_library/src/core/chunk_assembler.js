@@ -1,9 +1,13 @@
+import { WebViewRpcConfiguration } from './webview_rpc_configuration.js';
+
 /**
  * Manages chunking and reassembly of messages
  */
 export class ChunkAssembler {
     constructor() {
         this._chunkSets = new Map();
+        // Maximum number of concurrent chunk sets to prevent memory issues
+        this._maxConcurrentChunkSets = 100;
     }
 
     /**
@@ -19,6 +23,26 @@ export class ChunkAssembler {
 
         const chunkInfo = envelope.chunkInfo;
         const chunkSetId = chunkInfo.chunkSetId;
+
+        // Check if we've reached the maximum number of chunk sets
+        if (!this._chunkSets.has(chunkSetId) && 
+            this._chunkSets.size >= this._maxConcurrentChunkSets) {
+            // Remove the oldest chunk set
+            let oldestKey = null;
+            let oldestTime = Date.now();
+            
+            for (const [key, value] of this._chunkSets) {
+                if (value.lastActivity < oldestTime) {
+                    oldestTime = value.lastActivity;
+                    oldestKey = key;
+                }
+            }
+            
+            if (oldestKey) {
+                this._chunkSets.delete(oldestKey);
+                console.warn(`Maximum chunk sets reached. Removed oldest chunk set ${oldestKey}`);
+            }
+        }
 
         if (!this._chunkSets.has(chunkSetId)) {
             this._chunkSets.set(chunkSetId, {
@@ -66,8 +90,8 @@ export class ChunkAssembler {
             return result;
         }
 
-        // Cleanup old chunk sets (older than 30 seconds)
-        const cutoff = Date.now() - 30000;
+        // Cleanup old chunk sets (older than configured timeout)
+        const cutoff = Date.now() - (WebViewRpcConfiguration.chunkTimeoutSeconds * 1000);
         const toRemove = [];
         
         for (const [key, value] of this._chunkSets) {

@@ -101,8 +101,9 @@ export class WebViewRpcServer {
         // Send response
         if (responsePayload && !error) {
             // Check if chunking is needed
+            const effectivePayloadSize = WebViewRpcConfiguration.getEffectivePayloadSize();
             if (WebViewRpcConfiguration.enableChunking && 
-                responsePayload.length > WebViewRpcConfiguration.maxChunkSize) {
+                responsePayload.length > effectivePayloadSize) {
                 // Send as chunks
                 await this._sendChunkedMessage(
                     requestEnvelope.requestId, 
@@ -145,11 +146,12 @@ export class WebViewRpcServer {
      */
     async _sendChunkedMessage(requestId, method, data, isRequest, error = null) {
         const chunkSetId = `${requestId}_${crypto.randomUUID()}`;
-        const totalChunks = Math.ceil(data.length / WebViewRpcConfiguration.maxChunkSize);
+        const effectivePayloadSize = WebViewRpcConfiguration.getEffectivePayloadSize();
+        const totalChunks = Math.ceil(data.length / effectivePayloadSize);
 
         for (let i = 1; i <= totalChunks; i++) {
-            const offset = (i - 1) * WebViewRpcConfiguration.maxChunkSize;
-            const length = Math.min(WebViewRpcConfiguration.maxChunkSize, data.length - offset);
+            const offset = (i - 1) * effectivePayloadSize;
+            const length = Math.min(effectivePayloadSize, data.length - offset);
             const chunkData = data.slice(offset, offset + length);
 
             const envelope = {
