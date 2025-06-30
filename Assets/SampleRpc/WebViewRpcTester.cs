@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
@@ -11,6 +12,7 @@ namespace SampleRpc
     public class WebViewRpcTester : MonoBehaviour
     {
         [SerializeField] private CanvasWebViewPrefab webViewPrefab;
+        private HelloServiceClient _client;
 
         private void Awake()
         {
@@ -20,7 +22,7 @@ namespace SampleRpc
         private async void Start()
         {
             // Set chunking configuration
-            WebViewRpcConfiguration.MaxChunkSize = 900;
+            WebViewRpcConfiguration.MaxChunkSize = 900; // 900 bytes
             WebViewRpcConfiguration.EnableChunking = true;
             
             await InitializeWebView(webViewPrefab);
@@ -33,14 +35,14 @@ namespace SampleRpc
         
             // Initialize C# Client to handle C# -> JS RPC
             var rpcClient = new WebViewRpcClient(bridge);
-            var client = new HelloServiceClient(rpcClient);
+            _client = new HelloServiceClient(rpcClient);
         
             // Run bidirectional test
             await UniTask.Delay(3000); // Wait for web to be ready
-            RunBidirectionalChunkingTest(client);
+            // RunBidirectionalChunkingTest();
         }
 
-        private async void RunBidirectionalChunkingTest(HelloServiceClient client)
+        private async void RunBidirectionalChunkingTest()
         {
             Debug.Log("--- [C# Client] Sending Hello Request ---");
             
@@ -63,7 +65,7 @@ namespace SampleRpc
 
             try
             {
-                var response = await client.SayHello(request);
+                var response = await _client.SayHello(request);
 
                 Debug.Log("--- [C# Client] Received Hello Response ---");
                 Debug.Log($"[C# Client] Response: Greeting='{response.Greeting}', EchoedMessage Length={response.EchoedMessage.Length}, ProcessedAt='{response.ProcessedAt}', OriginalSize={response.OriginalMessageSize}");
@@ -80,6 +82,16 @@ namespace SampleRpc
             await webView.WaitUntilInitialized();
             webView.WebView.LoadUrl("http://localhost:8081");
             await webView.WebView.WaitForNextPageLoadToFinish();
+        }
+
+        private void Update()
+        {
+            // if space key is pressed, send a message to the web view
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                Debug.Log("Space key pressed, sending message to web view.");
+                RunBidirectionalChunkingTest();
+            }
         }
     }
 }
