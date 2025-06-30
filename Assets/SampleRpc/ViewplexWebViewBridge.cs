@@ -4,7 +4,7 @@ using WebViewRPC;
 
 namespace SampleRpc
 {
-    public class ViewplexWebViewBridge : IWebViewBridge, IDisposable
+    public class ViewplexWebViewBridge : IWebViewBridge
     {
         public event Action<string> OnMessageReceived;
         private readonly CanvasWebViewPrefab _webViewPrefab;

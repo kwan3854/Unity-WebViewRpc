@@ -56,10 +56,6 @@ namespace SampleRpc
             // Initialize C# Client to handle C# -> JS RPC
             _rpcClient = new WebViewRpcClient(_bridge);
             _client = new HelloServiceClient(_rpcClient);
-        
-            // Run bidirectional test
-            await UniTask.Delay(3000); // Wait for web to be ready
-            // RunBidirectionalChunkingTest();
         }
 
         private async void RunBidirectionalChunkingTest()
