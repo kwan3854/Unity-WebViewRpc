@@ -16,6 +16,7 @@ namespace WebViewRPC
         private readonly Dictionary<string, UniTaskCompletionSource<RpcEnvelope>> _pendingRequests = new();
         private readonly ChunkAssembler _chunkAssembler = new();
         private int _requestIdCounter = 1;
+        private readonly object _pendingRequestsLock = new object();
         private bool _disposed;
 
         public WebViewRpcClient(IWebViewBridge bridge)
@@ -32,11 +33,14 @@ namespace WebViewRPC
         public async UniTask<TResponse> CallMethod<TResponse>(string method, IMessage request)
             where TResponse : IMessage<TResponse>, new()
         {
-            var requestId = (_requestIdCounter++).ToString();
+            var requestId = Interlocked.Increment(ref _requestIdCounter).ToString();
             var requestBytes = request.ToByteArray();
             
             var tcs = new UniTaskCompletionSource<RpcEnvelope>();
-            _pendingRequests[requestId] = tcs;
+            lock (_pendingRequestsLock)
+            {
+                _pendingRequests[requestId] = tcs;
+            }
 
             try
             {
@@ -77,7 +81,10 @@ namespace WebViewRPC
             }
             finally
             {
-                _pendingRequests.Remove(requestId);
+                lock (_pendingRequestsLock)
+                {
+                    _pendingRequests.Remove(requestId);
+                }
             }
         }
         
@@ -112,13 +119,9 @@ namespace WebViewRPC
                 var bytes = envelope.ToByteArray();
                 var base64 = Convert.ToBase64String(bytes);
                 _bridge.SendMessageToWeb(base64);
-                
-                // Optional: Add small delay between chunks to avoid overwhelming the bridge
-                if (i < totalChunks)
-                {
-                    await UniTask.Delay(1);
-                }
             }
+
+            await UniTask.CompletedTask;
         }
         
         private void OnBridgeMessage(string base64)
@@ -170,9 +173,18 @@ namespace WebViewRPC
         
         private void ProcessCompleteEnvelope(RpcEnvelope envelope)
         {
-            if (!envelope.IsRequest && _pendingRequests.TryGetValue(envelope.RequestId, out var tcs))
+            if (!envelope.IsRequest)
             {
-                tcs.TrySetResult(envelope);
+                UniTaskCompletionSource<RpcEnvelope> tcs = null;
+                lock (_pendingRequestsLock)
+                {
+                    _pendingRequests.TryGetValue(envelope.RequestId, out tcs);
+                }
+                
+                if (tcs != null)
+                {
+                    tcs.TrySetResult(envelope);
+                }
             }
         }
 
@@ -183,11 +195,14 @@ namespace WebViewRPC
                 _bridge.OnMessageReceived -= OnBridgeMessage;
                 
                 // Cancel all pending requests
-                foreach (var pending in _pendingRequests.Values)
+                lock (_pendingRequestsLock)
                 {
-                    pending.TrySetCanceled();
+                    foreach (var pending in _pendingRequests.Values)
+                    {
+                        pending.TrySetCanceled();
+                    }
+                    _pendingRequests.Clear();
                 }
-                _pendingRequests.Clear();
                 
                 _disposed = true;
             }
