@@ -164,6 +164,53 @@ Download the latest release from the [WebViewRPC Code Generator repository](http
 - **Mac**: `protoc-gen-webviewrpc`
 - **Linux**: Not provided (requires manual build).
 
+## Chunking for Large Messages
+
+To handle environments with message size limitations, such as certain Android WebViews where the JavaScript bridge limit is around 1KB, WebView RPC includes a chunking feature. This allows large messages to be split into smaller chunks and reassembled on the receiving end.
+
+### How It Works
+
+When chunking is enabled, any message exceeding `MaxChunkSize` is automatically divided into smaller parts. Each chunk is sent individually and then reassembled by the receiver. This process is handled transparently by the library.
+
+### Configuration
+
+Chunking must be enabled and configured on both the C# (Unity) and JavaScript (WebView) sides to work correctly.
+
+#### Unity (C#) Configuration
+
+In your Unity script, configure the settings before initializing the client or server.
+
+```csharp
+using WebViewRPC;
+// ...
+
+void Start()
+{
+    // Enable chunking and set the max chunk size (e.g., 900 bytes)
+    WebViewRpcConfiguration.EnableChunking = true;
+    WebViewRpcConfiguration.MaxChunkSize = 900;
+
+    // ... initialize your RPC client/server
+}
+```
+
+#### JavaScript Configuration
+
+Similarly, configure the settings in your JavaScript code.
+
+```javascript
+import { WebViewRpcConfiguration } from 'app-webview-rpc';
+
+// Enable chunking and set the max chunk size
+WebViewRpcConfiguration.enableChunking = true;
+WebViewRpcConfiguration.maxChunkSize = 900;
+
+// ... initialize your RPC client/server
+```
+
+> [!NOTE]
+> Both the C# and JavaScript sides must have the same `MaxChunkSize` for chunking to function reliably. It is recommended to set this value to around 900 bytes to safely stay under the typical 1KB limit on Android.
+
 ## Quick Start
 
 HelloWorld is a simple RPC service that receives a `HelloRequest` message and returns a `HelloResponse` message. In this example, we will implement HelloWorld and verify communication between the Unity client and the WebView client.

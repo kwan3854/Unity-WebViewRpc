@@ -9,6 +9,17 @@ Unity WebView RPC provides an abstraction layer that allows communication betwee
 It extends the traditional `JavaScript bridge` communication method to work similarly to a Remote Procedure Call (RPC).
 To avoid dependency on a specific WebView library, it provides a Bridge interface so that communication can be achieved with the same code, regardless of the WebView library used.
 
+## What's New in v1.0.4
+
+### Bug Fixes
+WebView RPC v1.0.4 fixes a critical null handling issue:
+
+- **Fixed null handling in RPC envelope encoding**: Resolved `Cannot read properties of null (reading 'length')` error
+- **Proto3 compliance**: Now properly handles optional fields according to Proto3 specification
+- **Improved stability**: Optional fields are now omitted instead of being set to null
+
+For the complete changelog, see [CHANGELOG.md](CHANGELOG.md).
+
 ## Architecture
 
 WebView RPC simplifies the workflow compared to the traditional `JavaScript bridge` method.
@@ -73,21 +84,6 @@ npm install
 npm run build
 ```
 
-## What's New in v1.0.0
-
-### Full Async/Await Support
-WebView RPC now supports full async/await patterns for both server and client implementations:
-
-- **C# Integration**: Uses `UniTask` for better Unity performance
-- **JavaScript Integration**: Native `async/await` support
-- **Backward Compatibility**: Existing synchronous code continues to work through the Virtual-Virtual pattern
-
-### Breaking Changes
-- Generated methods now have `Async` suffix (e.g., `SayHelloAsync`)
-- Server implementations must use async patterns
-
-For detailed migration guide, see [CHANGELOG.md](CHANGELOG.md).
-
 ## Installation
 
 ### Adding WebView RPC to a Unity Project
@@ -120,7 +116,7 @@ For detailed migration guide, see [CHANGELOG.md](CHANGELOG.md).
 [npm package](https://www.npmjs.com/package/app-webview-rpc)
 #### Install
 ```bash
-npm install app-webview-rpc
+npm install app-webview-rpc@1.0.4
 ```
 
 #### Usage
@@ -441,11 +437,11 @@ using UnityEngine;
 
 namespace SampleRpc
 {
-    // Inherit HelloServiceBase and implement the SayHelloAsync method.
+    // Inherit HelloServiceBase and implement the SayHello method.
     // HelloServiceBase is generated from HelloWorld.proto.
     public class HelloWorldService : HelloServiceBase
     {
-        public override async UniTask<HelloResponse> SayHelloAsync(HelloRequest request)
+        public override async UniTask<HelloResponse> SayHello(HelloRequest request)
         {
             Debug.Log($"Received request: {request.Name}");
             
@@ -475,8 +471,7 @@ document.getElementById('btnSayHello').addEventListener('click', async () => {
         const reqObj = { name: "Hello World! From WebView" };
         console.log("Request to Unity: ", reqObj);
 
-        // Note: Method now has Async suffix
-        const resp = await helloClient.SayHelloAsync(reqObj);
+        const resp = await helloClient.SayHello(reqObj);
         console.log("Response from Unity: ", resp.greeting);
     } catch (err) {
         console.error("Error: ", err);
@@ -535,8 +530,8 @@ public class WebViewRpcTester : MonoBehaviour
         // Create a HelloServiceClient
         var client = new HelloServiceClient(rpcClient);
 
-        // Send a request (note the Async suffix)
-        var response = await client.SayHelloAsync(new HelloRequest()
+        // Send a request
+        var response = await client.SayHello(new HelloRequest()
         {
             Name = "World"
         });
@@ -576,7 +571,7 @@ import { HelloServiceBase } from "./HelloWorld_HelloServiceBase.js";
 
 // Inherit HelloServiceBase from the auto-generated HelloWorld_HelloServiceBase.js
 export class MyHelloServiceImpl extends HelloServiceBase {
-    async SayHelloAsync(requestObj) {
+    async SayHello(requestObj) {
         // Check the incoming request
         console.log("JS Server received: ", requestObj);
         

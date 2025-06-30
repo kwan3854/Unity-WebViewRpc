@@ -7,6 +7,17 @@
 기존의 통신방식인 `javascript bridge` 방식을 확장하여 RPC(Remote Procedure Call) 방식과 유사하게 사용할 수 있도록 구현하였습니다.
 특정 웹뷰 라이브러리에 종속되지 않도록 Bridge 인터페이스를 제공하여, 어떤 웹뷰 라이브러리를 사용하더라도 동일한 코드로 통신할 수 있도록 설계하였습니다.
 
+## v1.0.4의 새로운 기능
+
+### 버그 수정
+WebView RPC v1.0.4는 중요한 null 처리 문제를 수정했습니다:
+
+- **RPC envelope 인코딩 시 null 처리 문제 수정**: `Cannot read properties of null (reading 'length')` 오류 해결
+- **Proto3 사양 준수**: Proto3 사양에 따라 옵셔널 필드를 올바르게 처리
+- **안정성 향상**: 옵셔널 필드가 null로 설정되는 대신 생략되도록 수정
+
+전체 변경 내역은 [CHANGELOG.md](CHANGELOG.md)를 참조하세요.
+
 ## 구조도
 WebView RPC는 기존의 `javascript bridge` 방식과 비교하여 작업 흐름이 단순해졌습니다.
 ```mermaid
@@ -67,21 +78,6 @@ npm install
 npm run build
 ```
 
-## v1.0.0의 새로운 기능
-
-### 완전한 Async/Await 지원
-WebView RPC는 이제 서버 및 클라이언트 구현 모두에 대해 완전한 async/await 패턴을 지원합니다:
-
-- **C# 통합**: Unity 성능 향상을 위한 `UniTask` 사용
-- **JavaScript 통합**: 네이티브 `async/await` 지원
-- **하위 호환성**: Virtual-Virtual 패턴을 통해 기존 동기 코드가 계속 작동
-
-### 주요 변경사항
-- 생성된 메서드에 이제 `Async` 접미사가 붙습니다 (예: `SayHelloAsync`)
-- 서버 구현은 비동기 패턴을 사용해야 합니다
-
-자세한 마이그레이션 가이드는 [CHANGELOG.md](CHANGELOG.md)를 참조하세요.
-
 ## 설치
 ### 유니티 프로젝트에 WebView RPC 추가하기
 1. Nuget 패키지 매니저를 통해 `Protobuf` 패키지를 설치합니다.
@@ -105,7 +101,7 @@ WebView RPC는 이제 서버 및 클라이언트 구현 모두에 대해 완전�
 WebView RPC는 [npm 패키지](https://www.npmjs.com/package/app-webview-rpc)로 배포되고 있습니다.
 #### Install
 ```bash
-npm install app-webview-rpc
+npm install app-webview-rpc@1.0.4
 ```
 
 #### Usage
@@ -410,11 +406,11 @@ using UnityEngine;
 
 namespace SampleRpc
 {
-    // HelloServiceBase를 상속받아 SayHelloAsync 메서드를 구현
+    // HelloServiceBase를 상속받아 SayHello 메서드를 구현
     // HelloServiceBase는 HelloWorld.proto에서 생성된 코드입니다.
     public class HelloWorldService : HelloServiceBase
     {
-        public override async UniTask<HelloResponse> SayHelloAsync(HelloRequest request)
+        public override async UniTask<HelloResponse> SayHello(HelloRequest request)
         {
             Debug.Log($"Received request: {request.Name}");
             
@@ -443,8 +439,7 @@ document.getElementById('btnSayHello').addEventListener('click', async () => {
         const reqObj = {name: "Hello World! From WebView"};
         console.log("Request to Unity: ", reqObj);
 
-        // 참고: 메서드에 이제 Async 접미사가 붙습니다
-        const resp = await helloClient.SayHelloAsync(reqObj);
+        const resp = await helloClient.SayHello(reqObj);
         console.log("Response from Unity: ", resp.greeting);
     } catch (err) {
         console.error("Error: ", err);
@@ -496,8 +491,8 @@ public class WebViewRpcTester : MonoBehaviour
         // HelloServiceClient 생성
         var client = new HelloServiceClient(rpcClient);
         
-        // 요청 보내기 (Async 접미사 주의)
-        var response = await client.SayHelloAsync(new HelloRequest()
+        // 요청 보내기
+        var response = await client.SayHello(new HelloRequest()
         {
             Name = "World"
         });
@@ -535,7 +530,7 @@ import { HelloServiceBase } from "./HelloWorld_HelloServiceBase.js";
 
 // 자동 생성된 HelloWorld_HelloServiceBase.js의 HelloServiceBase를 상속받아 구현
 export class MyHelloServiceImpl extends HelloServiceBase {
-    async SayHelloAsync(requestObj) {
+    async SayHello(requestObj) {
         // 받은 요청을 확인
         console.log("JS Server received: ", requestObj);
         

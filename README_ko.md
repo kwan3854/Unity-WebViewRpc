@@ -142,6 +142,54 @@ protoc --version  # Ensure compiler version is 3+
 - Linux: 제공하지 않습니다.(직접 빌드 필요)
 
 
+## 대용량 메시지를 위한 청킹(분할 전송) 기능
+
+특정 안드로이드 WebView와 같이 JavaScript 브리지 통신에 약 1KB의 메시지 크기 제한이 있는 환경에 대응하기 위해, WebView RPC는 청킹(Chunking) 기능을 포함하고 있습니다. 이 기능을 사용하면 대용량 메시지를 작은 조각으로 나누어 전송하고 수신 측에서 재조립할 수 있습니다.
+
+### 동작 방식
+
+청킹이 활성화되면, `MaxChunkSize`를 초과하는 모든 메시지는 자동으로 더 작은 부분으로 분할됩니다. 각 청크는 개별적으로 전송된 후 수신자에 의해 재조립됩니다. 이 과정은 라이브러리 내부에서 투명하게 처리됩니다.
+
+### 설정 방법
+
+청킹 기능이 올바르게 동작하려면 C#(Unity)와 JavaScript(웹뷰) 양쪽 모두에서 활성화하고 설정해야 합니다.
+
+#### Unity (C#) 설정
+
+Unity 스크립트에서 클라이언트 또는 서버를 초기화하기 전에 설정을 구성합니다.
+
+```csharp
+using WebViewRPC;
+// ...
+
+void Start()
+{
+    // 청킹 활성화 및 최대 청크 크기 설정 (예: 900바이트)
+    WebViewRpcConfiguration.EnableChunking = true;
+    WebViewRpcConfiguration.MaxChunkSize = 900;
+
+    // ... RPC 클라이언트/서버 초기화
+}
+```
+
+#### JavaScript 설정
+
+마찬가지로 JavaScript 코드에서도 설정을 구성합니다.
+
+```javascript
+import { WebViewRpcConfiguration } from 'app-webview-rpc';
+
+// 청킹 활성화 및 최대 청크 크기 설정
+WebViewRpcConfiguration.enableChunking = true;
+WebViewRpcConfiguration.maxChunkSize = 900;
+
+// ... RPC 클라이언트/서버 초기화
+```
+
+> [!NOTE]
+> 청킹이 안정적으로 동작하려면 C#과 JavaScript 양쪽의 `MaxChunkSize`가 동일해야 합니다. 안드로이드의 일반적인 1KB 제한을 안전하게 피하려면 이 값을 약 900바이트로 설정하는 것이 좋습니다.
+
+
 ## 빠른 시작
 HelloWorld 라는 간단한 RPC 서비스를 구현하고, 유니티 클라이언트와 웹뷰 클라이언트 간의 통신을 확인해보겠습니다.
 
