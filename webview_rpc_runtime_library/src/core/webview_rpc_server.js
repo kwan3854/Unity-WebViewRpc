@@ -1,5 +1,7 @@
 import { decodeRpcEnvelope, encodeRpcEnvelope } from './rpc_envelope.js';
 import { base64ToUint8Array, uint8ArrayToBase64 } from './webview_rpc_utils.js';
+import { WebViewRpcConfiguration } from './webview_rpc_configuration.js';
+import { ChunkAssembler } from './chunk_assembler.js';
 
 /**
  * WebView RPC Server
@@ -10,6 +12,7 @@ export class WebViewRpcServer {
         this._bridge = bridge;
         this._services = [];
         this._methodHandlers = {};
+        this._chunkAssembler = new ChunkAssembler();
         
         // Listen for messages from Unity
         this._bridge.onMessage((base64Message) => {
@@ -46,8 +49,30 @@ export class WebViewRpcServer {
             const bytes = base64ToUint8Array(base64Message);
             const envelope = decodeRpcEnvelope(bytes);
 
-            if (envelope.isRequest) {
-                await this._handleRequest(envelope);
+            // Check if this is a chunked message
+            if (envelope.chunkInfo) {
+                // Try to reassemble
+                const completeData = this._chunkAssembler.tryAssemble(envelope);
+                if (completeData) {
+                    // Create a new envelope with the complete data
+                    const completeEnvelope = {
+                        requestId: envelope.requestId,
+                        isRequest: envelope.isRequest,
+                        method: envelope.method,
+                        payload: completeData,
+                        error: envelope.error
+                    };
+                    
+                    if (completeEnvelope.isRequest) {
+                        await this._handleRequest(completeEnvelope);
+                    }
+                }
+                // else: waiting for more chunks
+            } else {
+                // Process as regular message
+                if (envelope.isRequest) {
+                    await this._handleRequest(envelope);
+                }
             }
         } catch (error) {
             console.error('Error handling message:', error);
@@ -59,29 +84,101 @@ export class WebViewRpcServer {
      * @param {Object} requestEnvelope 
      */
     async _handleRequest(requestEnvelope) {
-        const responseEnvelope = {
-            requestId: requestEnvelope.requestId,
-            isRequest: false,
-            method: requestEnvelope.method
-            // payload and error fields will be set only when needed
-        };
+        let responsePayload = null;
+        let error = null;
 
         try {
             const handler = this._methodHandlers[requestEnvelope.method];
             if (handler) {
-                const responsePayload = await handler(requestEnvelope.payload);
-                responseEnvelope.payload = responsePayload;
+                responsePayload = await handler(requestEnvelope.payload);
             } else {
-                responseEnvelope.error = `Unknown method: ${requestEnvelope.method}`;
+                error = `Unknown method: ${requestEnvelope.method}`;
             }
-        } catch (error) {
-            responseEnvelope.error = error.message || 'Internal server error';
+        } catch (err) {
+            error = err.message || 'Internal server error';
         }
 
-        // Send response back to Unity
-        const responseBytes = encodeRpcEnvelope(responseEnvelope);
-        const responseBase64 = uint8ArrayToBase64(responseBytes);
-        this._bridge.sendMessage(responseBase64);
+        // Send response
+        if (responsePayload && !error) {
+            // Check if chunking is needed
+            if (WebViewRpcConfiguration.enableChunking && 
+                responsePayload.length > WebViewRpcConfiguration.maxChunkSize) {
+                // Send as chunks
+                await this._sendChunkedMessage(
+                    requestEnvelope.requestId, 
+                    requestEnvelope.method, 
+                    responsePayload, 
+                    false, 
+                    error
+                );
+            } else {
+                // Send as single message
+                const responseEnvelope = {
+                    requestId: requestEnvelope.requestId,
+                    isRequest: false,
+                    method: requestEnvelope.method,
+                    payload: responsePayload
+                };
+                
+                const responseBytes = encodeRpcEnvelope(responseEnvelope);
+                const responseBase64 = uint8ArrayToBase64(responseBytes);
+                this._bridge.sendMessage(responseBase64);
+            }
+        } else {
+            // Error response
+            const responseEnvelope = {
+                requestId: requestEnvelope.requestId,
+                isRequest: false,
+                method: requestEnvelope.method,
+                error: error || 'Unknown error'
+            };
+            
+            const responseBytes = encodeRpcEnvelope(responseEnvelope);
+            const responseBase64 = uint8ArrayToBase64(responseBytes);
+            this._bridge.sendMessage(responseBase64);
+        }
+    }
+
+    /**
+     * Send a message in chunks
+     * @private
+     */
+    async _sendChunkedMessage(requestId, method, data, isRequest, error = null) {
+        const chunkSetId = `${requestId}_${crypto.randomUUID()}`;
+        const totalChunks = Math.ceil(data.length / WebViewRpcConfiguration.maxChunkSize);
+
+        for (let i = 1; i <= totalChunks; i++) {
+            const offset = (i - 1) * WebViewRpcConfiguration.maxChunkSize;
+            const length = Math.min(WebViewRpcConfiguration.maxChunkSize, data.length - offset);
+            const chunkData = data.slice(offset, offset + length);
+
+            const envelope = {
+                requestId,
+                isRequest,
+                method,
+                payload: chunkData,
+                chunkInfo: {
+                    chunkSetId,
+                    chunkIndex: i,
+                    totalChunks,
+                    originalSize: data.length
+                }
+            };
+
+            // Only set error on the first chunk
+            if (i === 1 && error) {
+                envelope.error = error;
+            }
+
+            const bytes = encodeRpcEnvelope(envelope);
+            const base64 = uint8ArrayToBase64(bytes);
+            this._bridge.sendMessage(base64);
+
+            // Optional: Add small delay between chunks
+            if (i < totalChunks) {
+                await new Promise(resolve => setTimeout(resolve, 1));
+            }
+        }
     }
 
     /**

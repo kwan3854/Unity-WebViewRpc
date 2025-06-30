@@ -1,5 +1,7 @@
 import { decodeRpcEnvelope, encodeRpcEnvelope } from './rpc_envelope.js';
 import { base64ToUint8Array, uint8ArrayToBase64 } from './webview_rpc_utils.js';
+import { WebViewRpcConfiguration } from './webview_rpc_configuration.js';
+import { ChunkAssembler } from './chunk_assembler.js';
 
 /**
  * WebView RPC Client
@@ -11,6 +13,7 @@ export class WebViewRpcClient {
         this._pendingRequests = new Map();
         this._requestIdCounter = 1;
         this._disposed = false;
+        this._chunkAssembler = new ChunkAssembler();
 
         // Listen for responses from Unity
         this._bridge.onMessage((base64Message) => {
@@ -31,24 +34,68 @@ export class WebViewRpcClient {
 
         const requestId = String(this._requestIdCounter++);
         
-        const envelope = {
-            requestId,
-            isRequest: true,
-            method,
-            payload: requestPayload
-        };
-
         // Create promise for this request
         const promise = new Promise((resolve, reject) => {
             this._pendingRequests.set(requestId, { resolve, reject });
         });
 
-        // Send request to Unity
-        const bytes = encodeRpcEnvelope(envelope);
-        const base64 = uint8ArrayToBase64(bytes);
-        this._bridge.sendMessage(base64);
+        // Check if chunking is needed
+        if (WebViewRpcConfiguration.enableChunking && 
+            requestPayload.length > WebViewRpcConfiguration.maxChunkSize) {
+            // Send as chunks
+            await this._sendChunkedMessage(requestId, method, requestPayload, true);
+        } else {
+            // Send as single message
+            const envelope = {
+                requestId,
+                isRequest: true,
+                method,
+                payload: requestPayload
+            };
+
+            const bytes = encodeRpcEnvelope(envelope);
+            const base64 = uint8ArrayToBase64(bytes);
+            this._bridge.sendMessage(base64);
+        }
 
         return promise;
+    }
+
+    /**
+     * Send a message in chunks
+     * @private
+     */
+    async _sendChunkedMessage(requestId, method, data, isRequest) {
+        const chunkSetId = `${requestId}_${crypto.randomUUID()}`;
+        const totalChunks = Math.ceil(data.length / WebViewRpcConfiguration.maxChunkSize);
+
+        for (let i = 1; i <= totalChunks; i++) {
+            const offset = (i - 1) * WebViewRpcConfiguration.maxChunkSize;
+            const length = Math.min(WebViewRpcConfiguration.maxChunkSize, data.length - offset);
+            const chunkData = data.slice(offset, offset + length);
+
+            const envelope = {
+                requestId,
+                isRequest,
+                method,
+                payload: chunkData,
+                chunkInfo: {
+                    chunkSetId,
+                    chunkIndex: i,
+                    totalChunks,
+                    originalSize: data.length
+                }
+            };
+
+            const bytes = encodeRpcEnvelope(envelope);
+            const base64 = uint8ArrayToBase64(bytes);
+            this._bridge.sendMessage(base64);
+
+            // Optional: Add small delay between chunks
+            if (i < totalChunks) {
+                await new Promise(resolve => setTimeout(resolve, 1));
+            }
+        }
     }
 
     /**
@@ -62,21 +109,49 @@ export class WebViewRpcClient {
             const bytes = base64ToUint8Array(base64Message);
             const envelope = decodeRpcEnvelope(bytes);
 
-            if (!envelope.isRequest) {
-                // Handle response
-                const pending = this._pendingRequests.get(envelope.requestId);
-                if (pending) {
-                    this._pendingRequests.delete(envelope.requestId);
+            // Check if this is a chunked message
+            if (envelope.chunkInfo) {
+                // Try to reassemble
+                const completeData = this._chunkAssembler.tryAssemble(envelope);
+                if (completeData) {
+                    // Create a new envelope with the complete data
+                    const completeEnvelope = {
+                        requestId: envelope.requestId,
+                        isRequest: envelope.isRequest,
+                        method: envelope.method,
+                        payload: completeData,
+                        error: envelope.error
+                    };
                     
-                    if (envelope.error) {
-                        pending.reject(new Error(envelope.error));
-                    } else {
-                        pending.resolve(envelope.payload);
-                    }
+                    this._processCompleteEnvelope(completeEnvelope);
                 }
+                // else: waiting for more chunks
+            } else {
+                // Process as regular message
+                this._processCompleteEnvelope(envelope);
             }
         } catch (error) {
             console.error('Error handling message:', error);
+        }
+    }
+
+    /**
+     * Process a complete envelope
+     * @private
+     */
+    _processCompleteEnvelope(envelope) {
+        if (!envelope.isRequest) {
+            // Handle response
+            const pending = this._pendingRequests.get(envelope.requestId);
+            if (pending) {
+                this._pendingRequests.delete(envelope.requestId);
+                
+                if (envelope.error) {
+                    pending.reject(new Error(envelope.error));
+                } else {
+                    pending.resolve(envelope.payload);
+                }
+            }
         }
     }
 

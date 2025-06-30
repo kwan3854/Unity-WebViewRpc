@@ -39,6 +39,17 @@ function _encodeRpcEnvelope(message, bb) {
     writeVarint32(bb, 42);
     writeString(bb, $error);
   }
+
+  // optional ChunkInfo chunkInfo = 6;
+  let $chunkInfo = message.chunkInfo;
+  if ($chunkInfo !== undefined) {
+    writeVarint32(bb, 50);
+    let nested = popByteBuffer();
+    _encodeChunkInfo($chunkInfo, nested);
+    writeVarint32(bb, nested.limit);
+    writeByteBuffer(bb, nested);
+    pushByteBuffer(nested);
+  }
 }
 
 export function decodeRpcEnvelope(binary) {
@@ -82,6 +93,96 @@ function _decodeRpcEnvelope(bb) {
       // optional string error = 5;
       case 5: {
         message.error = readString(bb, readVarint32(bb));
+        break;
+      }
+
+      // optional ChunkInfo chunkInfo = 6;
+      case 6: {
+        let limit = pushTemporaryLength(bb);
+        message.chunkInfo = _decodeChunkInfo(bb);
+        bb.limit = limit;
+        break;
+      }
+
+      default:
+        skipUnknownField(bb, tag & 7);
+    }
+  }
+
+  return message;
+}
+
+export function encodeChunkInfo(message) {
+  let bb = popByteBuffer();
+  _encodeChunkInfo(message, bb);
+  return toUint8Array(bb);
+}
+
+function _encodeChunkInfo(message, bb) {
+  // optional string chunkSetId = 1;
+  let $chunkSetId = message.chunkSetId;
+  if ($chunkSetId !== undefined) {
+    writeVarint32(bb, 10);
+    writeString(bb, $chunkSetId);
+  }
+
+  // optional int32 chunkIndex = 2;
+  let $chunkIndex = message.chunkIndex;
+  if ($chunkIndex !== undefined) {
+    writeVarint32(bb, 16);
+    writeVarint64(bb, intToLong($chunkIndex));
+  }
+
+  // optional int32 totalChunks = 3;
+  let $totalChunks = message.totalChunks;
+  if ($totalChunks !== undefined) {
+    writeVarint32(bb, 24);
+    writeVarint64(bb, intToLong($totalChunks));
+  }
+
+  // optional int32 originalSize = 4;
+  let $originalSize = message.originalSize;
+  if ($originalSize !== undefined) {
+    writeVarint32(bb, 32);
+    writeVarint64(bb, intToLong($originalSize));
+  }
+}
+
+export function decodeChunkInfo(binary) {
+  return _decodeChunkInfo(wrapByteBuffer(binary));
+}
+
+function _decodeChunkInfo(bb) {
+  let message = {};
+
+  end_of_message: while (!isAtEnd(bb)) {
+    let tag = readVarint32(bb);
+
+    switch (tag >>> 3) {
+      case 0:
+        break end_of_message;
+
+      // optional string chunkSetId = 1;
+      case 1: {
+        message.chunkSetId = readString(bb, readVarint32(bb));
+        break;
+      }
+
+      // optional int32 chunkIndex = 2;
+      case 2: {
+        message.chunkIndex = readVarint32(bb);
+        break;
+      }
+
+      // optional int32 totalChunks = 3;
+      case 3: {
+        message.totalChunks = readVarint32(bb);
+        break;
+      }
+
+      // optional int32 originalSize = 4;
+      case 4: {
+        message.originalSize = readVarint32(bb);
         break;
       }
 

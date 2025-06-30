@@ -24,14 +24,18 @@ namespace WebViewRPC {
     static RpcEnvelopeReflection() {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
-            "ChFScGNFbnZlbG9wZS5wcm90bxIKV2ViVmlld1JQQyJjCgtScGNFbnZlbG9w",
-            "ZRIRCglyZXF1ZXN0SWQYASABKAkSEQoJaXNSZXF1ZXN0GAIgASgIEg4KBm1l",
-            "dGhvZBgDIAEoCRIPCgdwYXlsb2FkGAQgASgMEg0KBWVycm9yGAUgASgJQg2q",
-            "AgpXZWJWaWV3UlBDYgZwcm90bzM="));
+            "ChFScGNFbnZlbG9wZS5wcm90bxIKV2ViVmlld1JQQyKNAQoLUnBjRW52ZWxv",
+            "cGUSEQoJcmVxdWVzdElkGAEgASgJEhEKCWlzUmVxdWVzdBgCIAEoCBIOCgZt",
+            "ZXRob2QYAyABKAkSDwoHcGF5bG9hZBgEIAEoDBINCgVlcnJvchgFIAEoCRIo",
+            "CgljaHVua0luZm8YBiABKAsyFS5XZWJWaWV3UlBDLkNodW5rSW5mbyJeCglD",
+            "aHVua0luZm8SEgoKY2h1bmtTZXRJZBgBIAEoCRISCgpjaHVua0luZGV4GAIg",
+            "ASgFEhMKC3RvdGFsQ2h1bmtzGAMgASgFEhQKDG9yaWdpbmFsU2l6ZRgEIAEo",
+            "BUINqgIKV2ViVmlld1JQQ2IGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::WebViewRPC.RpcEnvelope), global::WebViewRPC.RpcEnvelope.Parser, new[]{ "RequestId", "IsRequest", "Method", "Payload", "Error" }, null, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::WebViewRPC.RpcEnvelope), global::WebViewRPC.RpcEnvelope.Parser, new[]{ "RequestId", "IsRequest", "Method", "Payload", "Error", "ChunkInfo" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WebViewRPC.ChunkInfo), global::WebViewRPC.ChunkInfo.Parser, new[]{ "ChunkSetId", "ChunkIndex", "TotalChunks", "OriginalSize" }, null, null, null, null)
           }));
     }
     #endregion
@@ -78,6 +82,7 @@ namespace WebViewRPC {
       method_ = other.method_;
       payload_ = other.payload_;
       error_ = other.error_;
+      chunkInfo_ = other.chunkInfo_ != null ? other.chunkInfo_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -162,6 +167,21 @@ namespace WebViewRPC {
       }
     }
 
+    /// <summary>Field number for the "chunkInfo" field.</summary>
+    public const int ChunkInfoFieldNumber = 6;
+    private global::WebViewRPC.ChunkInfo chunkInfo_;
+    /// <summary>
+    /// 청킹 정보 (optional - 청킹이 필요한 경우에만 설정)
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::WebViewRPC.ChunkInfo ChunkInfo {
+      get { return chunkInfo_; }
+      set {
+        chunkInfo_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -182,6 +202,7 @@ namespace WebViewRPC {
       if (Method != other.Method) return false;
       if (Payload != other.Payload) return false;
       if (Error != other.Error) return false;
+      if (!object.Equals(ChunkInfo, other.ChunkInfo)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -194,6 +215,7 @@ namespace WebViewRPC {
       if (Method.Length != 0) hash ^= Method.GetHashCode();
       if (Payload.Length != 0) hash ^= Payload.GetHashCode();
       if (Error.Length != 0) hash ^= Error.GetHashCode();
+      if (chunkInfo_ != null) hash ^= ChunkInfo.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -232,6 +254,10 @@ namespace WebViewRPC {
         output.WriteRawTag(42);
         output.WriteString(Error);
       }
+      if (chunkInfo_ != null) {
+        output.WriteRawTag(50);
+        output.WriteMessage(ChunkInfo);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -262,6 +288,10 @@ namespace WebViewRPC {
         output.WriteRawTag(42);
         output.WriteString(Error);
       }
+      if (chunkInfo_ != null) {
+        output.WriteRawTag(50);
+        output.WriteMessage(ChunkInfo);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -286,6 +316,9 @@ namespace WebViewRPC {
       }
       if (Error.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(Error);
+      }
+      if (chunkInfo_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(ChunkInfo);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -313,6 +346,12 @@ namespace WebViewRPC {
       }
       if (other.Error.Length != 0) {
         Error = other.Error;
+      }
+      if (other.chunkInfo_ != null) {
+        if (chunkInfo_ == null) {
+          ChunkInfo = new global::WebViewRPC.ChunkInfo();
+        }
+        ChunkInfo.MergeFrom(other.ChunkInfo);
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -353,6 +392,13 @@ namespace WebViewRPC {
             Error = input.ReadString();
             break;
           }
+          case 50: {
+            if (chunkInfo_ == null) {
+              ChunkInfo = new global::WebViewRPC.ChunkInfo();
+            }
+            input.ReadMessage(ChunkInfo);
+            break;
+          }
         }
       }
     #endif
@@ -390,6 +436,337 @@ namespace WebViewRPC {
           }
           case 42: {
             Error = input.ReadString();
+            break;
+          }
+          case 50: {
+            if (chunkInfo_ == null) {
+              ChunkInfo = new global::WebViewRPC.ChunkInfo();
+            }
+            input.ReadMessage(ChunkInfo);
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
+  /// 청크 정보
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class ChunkInfo : pb::IMessage<ChunkInfo>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<ChunkInfo> _parser = new pb::MessageParser<ChunkInfo>(() => new ChunkInfo());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<ChunkInfo> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::WebViewRPC.RpcEnvelopeReflection.Descriptor.MessageTypes[1]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ChunkInfo() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ChunkInfo(ChunkInfo other) : this() {
+      chunkSetId_ = other.chunkSetId_;
+      chunkIndex_ = other.chunkIndex_;
+      totalChunks_ = other.totalChunks_;
+      originalSize_ = other.originalSize_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ChunkInfo Clone() {
+      return new ChunkInfo(this);
+    }
+
+    /// <summary>Field number for the "chunkSetId" field.</summary>
+    public const int ChunkSetIdFieldNumber = 1;
+    private string chunkSetId_ = "";
+    /// <summary>
+    /// 이 청크 세트의 고유 ID
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string ChunkSetId {
+      get { return chunkSetId_; }
+      set {
+        chunkSetId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "chunkIndex" field.</summary>
+    public const int ChunkIndexFieldNumber = 2;
+    private int chunkIndex_;
+    /// <summary>
+    /// 현재 청크 인덱스 (0부터 시작)
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int ChunkIndex {
+      get { return chunkIndex_; }
+      set {
+        chunkIndex_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "totalChunks" field.</summary>
+    public const int TotalChunksFieldNumber = 3;
+    private int totalChunks_;
+    /// <summary>
+    /// 전체 청크 개수
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int TotalChunks {
+      get { return totalChunks_; }
+      set {
+        totalChunks_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "originalSize" field.</summary>
+    public const int OriginalSizeFieldNumber = 4;
+    private int originalSize_;
+    /// <summary>
+    /// 원본 메시지의 전체 크기 (검증용)
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int OriginalSize {
+      get { return originalSize_; }
+      set {
+        originalSize_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as ChunkInfo);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(ChunkInfo other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (ChunkSetId != other.ChunkSetId) return false;
+      if (ChunkIndex != other.ChunkIndex) return false;
+      if (TotalChunks != other.TotalChunks) return false;
+      if (OriginalSize != other.OriginalSize) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (ChunkSetId.Length != 0) hash ^= ChunkSetId.GetHashCode();
+      if (ChunkIndex != 0) hash ^= ChunkIndex.GetHashCode();
+      if (TotalChunks != 0) hash ^= TotalChunks.GetHashCode();
+      if (OriginalSize != 0) hash ^= OriginalSize.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (ChunkSetId.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(ChunkSetId);
+      }
+      if (ChunkIndex != 0) {
+        output.WriteRawTag(16);
+        output.WriteInt32(ChunkIndex);
+      }
+      if (TotalChunks != 0) {
+        output.WriteRawTag(24);
+        output.WriteInt32(TotalChunks);
+      }
+      if (OriginalSize != 0) {
+        output.WriteRawTag(32);
+        output.WriteInt32(OriginalSize);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (ChunkSetId.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(ChunkSetId);
+      }
+      if (ChunkIndex != 0) {
+        output.WriteRawTag(16);
+        output.WriteInt32(ChunkIndex);
+      }
+      if (TotalChunks != 0) {
+        output.WriteRawTag(24);
+        output.WriteInt32(TotalChunks);
+      }
+      if (OriginalSize != 0) {
+        output.WriteRawTag(32);
+        output.WriteInt32(OriginalSize);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (ChunkSetId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(ChunkSetId);
+      }
+      if (ChunkIndex != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(ChunkIndex);
+      }
+      if (TotalChunks != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(TotalChunks);
+      }
+      if (OriginalSize != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(OriginalSize);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(ChunkInfo other) {
+      if (other == null) {
+        return;
+      }
+      if (other.ChunkSetId.Length != 0) {
+        ChunkSetId = other.ChunkSetId;
+      }
+      if (other.ChunkIndex != 0) {
+        ChunkIndex = other.ChunkIndex;
+      }
+      if (other.TotalChunks != 0) {
+        TotalChunks = other.TotalChunks;
+      }
+      if (other.OriginalSize != 0) {
+        OriginalSize = other.OriginalSize;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            ChunkSetId = input.ReadString();
+            break;
+          }
+          case 16: {
+            ChunkIndex = input.ReadInt32();
+            break;
+          }
+          case 24: {
+            TotalChunks = input.ReadInt32();
+            break;
+          }
+          case 32: {
+            OriginalSize = input.ReadInt32();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            ChunkSetId = input.ReadString();
+            break;
+          }
+          case 16: {
+            ChunkIndex = input.ReadInt32();
+            break;
+          }
+          case 24: {
+            TotalChunks = input.ReadInt32();
+            break;
+          }
+          case 32: {
+            OriginalSize = input.ReadInt32();
             break;
           }
         }
