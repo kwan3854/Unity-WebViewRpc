@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.9] - 2025-01-22
+
+### Added
+- `maxConcurrentChunkSets` configuration option (default: 100, min: 10, max: 1000)
+- Request ID tracking in ChunkAssembler for better timeout management
+- Proper timeout handling for chunk reassembly failures
+
+### Fixed
+- **Critical**: Fixed infinite waiting issue when chunk reassembly times out
+- Pending requests are now properly rejected with timeout error when chunks expire
+- Unity: Added `TimeoutException` for chunk reassembly failures
+- JavaScript: Added timeout error rejection for incomplete chunk sets
+
+### Changed
+- ChunkAssembler now returns timed out request IDs for proper cleanup
+- Both Unity and JavaScript implementations now handle chunk timeouts consistently
+
 ## [2.0.8] - 2025-01-22
 
 ### Added
