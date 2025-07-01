@@ -15,10 +15,12 @@ namespace WebViewRPC
         private readonly IWebViewBridge _bridge;
         private readonly Dictionary<string, UniTaskCompletionSource<RpcEnvelope>> _pendingRequests = new();
         private readonly ChunkAssembler _chunkAssembler = new();
-        private int _requestIdCounter = 1;
+        private readonly CancellationTokenSource _cancellationTokenSource = new();
         private readonly object _pendingRequestsLock = new object();
+        
+        private int _requestIdCounter = 1;
         private bool _disposed;
-        private CancellationTokenSource _cancellationTokenSource = new();
+
 
         public WebViewRpcClient(IWebViewBridge bridge)
         {
