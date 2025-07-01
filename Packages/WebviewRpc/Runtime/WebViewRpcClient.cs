@@ -12,14 +12,14 @@ namespace WebViewRPC
     /// </summary>
     public class WebViewRpcClient : IDisposable
     {
+        private int _requestIdCounter = 1;
+        private bool _disposed;
+        
         private readonly IWebViewBridge _bridge;
         private readonly Dictionary<string, UniTaskCompletionSource<RpcEnvelope>> _pendingRequests = new();
         private readonly ChunkAssembler _chunkAssembler = new();
         private readonly CancellationTokenSource _cancellationTokenSource = new();
         private readonly object _pendingRequestsLock = new object();
-        
-        private int _requestIdCounter = 1;
-        private bool _disposed;
 
 
         public WebViewRpcClient(IWebViewBridge bridge)

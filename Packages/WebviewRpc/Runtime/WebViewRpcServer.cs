@@ -9,10 +9,11 @@ namespace WebViewRPC
 {
     public class WebViewRpcServer : IDisposable
     {
+        private bool _disposed;
+        
         private readonly IWebViewBridge _bridge;
         private readonly ChunkAssembler _chunkAssembler = new();
-        private bool _disposed;
-        private CancellationTokenSource _cancellationTokenSource = new();
+        private readonly CancellationTokenSource _cancellationTokenSource = new();
 
         /// <summary>
         /// You can add multiple services to the server.
