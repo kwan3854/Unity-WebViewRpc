@@ -18,7 +18,9 @@
       "version": "file:WebviewRpc",
       "depth": 0,
       "source": "embedded",
-      "dependencies": {}
+      "dependencies": {
+        "com.cysharp.unitask": "2.5.10"
+      }
     },
     "com.unity.ai.navigation": {
       "version": "2.0.5",
