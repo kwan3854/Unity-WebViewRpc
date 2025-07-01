@@ -12,7 +12,6 @@ namespace WebViewRPC
     /// </summary>
     public class WebViewRpcClient : IDisposable
     {
-        private int _requestIdCounter = 1;
         private bool _disposed;
         
         private readonly IWebViewBridge _bridge;
@@ -41,7 +40,7 @@ namespace WebViewRPC
                 throw new ObjectDisposedException(nameof(WebViewRpcClient), "Cannot call method on disposed client");
             }
             
-            var requestId = Interlocked.Increment(ref _requestIdCounter).ToString();
+            var requestId = Guid.NewGuid().ToString("N");
             var requestBytes = request.ToByteArray();
             
             var tcs = new UniTaskCompletionSource<RpcEnvelope>();
@@ -101,7 +100,6 @@ namespace WebViewRPC
             // Check disposed state
             if (_disposed || _cancellationTokenSource.Token.IsCancellationRequested) return;
             
-            var chunkSetId = $"{requestId}_{Guid.NewGuid():N}";
             int effectivePayloadSize = WebViewRpcConfiguration.GetEffectivePayloadSize();
             var totalChunks = (int)Math.Ceiling((double)data.Length / effectivePayloadSize);
             
@@ -123,7 +121,7 @@ namespace WebViewRPC
                     Payload = ByteString.CopyFrom(chunkData),
                     ChunkInfo = new ChunkInfo
                     {
-                        ChunkSetId = chunkSetId,
+                        ChunkSetId = "", // Not used anymore, but required by protobuf
                         ChunkIndex = i,
                         TotalChunks = totalChunks,
                         OriginalSize = data.Length

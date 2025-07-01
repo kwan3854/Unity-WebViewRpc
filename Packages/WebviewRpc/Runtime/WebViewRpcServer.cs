@@ -203,7 +203,6 @@ namespace WebViewRPC
             // Check disposed state before starting
             if (_disposed || cancellationToken.IsCancellationRequested) return;
             
-            var chunkSetId = $"{requestId}_{Guid.NewGuid():N}";
             int effectivePayloadSize = WebViewRpcConfiguration.GetEffectivePayloadSize();
             var totalChunks = (int)Math.Ceiling((double)data.Length / effectivePayloadSize);
             
@@ -225,7 +224,7 @@ namespace WebViewRPC
                     Payload = ByteString.CopyFrom(chunkData),
                     ChunkInfo = new ChunkInfo
                     {
-                        ChunkSetId = chunkSetId,
+                        ChunkSetId = "",
                         ChunkIndex = i,
                         TotalChunks = totalChunks,
                         OriginalSize = data.Length
