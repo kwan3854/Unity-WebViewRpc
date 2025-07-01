@@ -9,16 +9,17 @@ Unity WebView RPC provides an abstraction layer that allows communication betwee
 It extends the traditional `JavaScript bridge` communication method to work similarly to a Remote Procedure Call (RPC).
 To avoid dependency on a specific WebView library, it provides a Bridge interface so that communication can be achieved with the same code, regardless of the WebView library used.
 
-## What's New in v1.0.4
+## What's New in v2.0
 
-### Bug Fixes
-WebView RPC v1.0.4 fixes a critical null handling issue:
+WebView RPC v2.0 introduces significant improvements for robustness, performance, and memory management.
 
-- **Fixed null handling in RPC envelope encoding**: Resolved `Cannot read properties of null (reading 'length')` error
-- **Proto3 compliance**: Now properly handles optional fields according to Proto3 specification
-- **Improved stability**: Optional fields are now omitted instead of being set to null
+### Key Changes
+- **Unique Request IDs (Breaking Change)**: `RequestId` now uses UUIDs instead of incremental numbers, preventing collisions when using multiple WebViews.
+- **Smarter Chunking (Breaking Change)**: The `maxChunkSize` setting now accurately represents the final Base64-encoded message size, including all overhead. New utility methods like `getEffectivePayloadSize()` help you configure chunking precisely.
+- **Improved Timeout Handling**: Fixed a critical bug where requests could wait indefinitely. Incomplete messages now correctly time out.
+- **Resource Management**: Added `dispose()` methods to RPC clients, servers, and bridges to prevent memory leaks from event listeners.
 
-For the complete changelog, see [CHANGELOG.md](CHANGELOG.md).
+For a complete list of changes, see the [CHANGELOG.md](webview_rpc_runtime_library/CHANGELOG.md) for the `app-webview-rpc` library.
 
 ## Architecture
 
@@ -116,7 +117,7 @@ npm run build
 [npm package](https://www.npmjs.com/package/app-webview-rpc)
 #### Install
 ```bash
-npm install app-webview-rpc@1.0.4
+npm install app-webview-rpc@2.0.11
 ```
 
 #### Usage

@@ -7,16 +7,17 @@
 기존의 통신방식인 `javascript bridge` 방식을 확장하여 RPC(Remote Procedure Call) 방식과 유사하게 사용할 수 있도록 구현하였습니다.
 특정 웹뷰 라이브러리에 종속되지 않도록 Bridge 인터페이스를 제공하여, 어떤 웹뷰 라이브러리를 사용하더라도 동일한 코드로 통신할 수 있도록 설계하였습니다.
 
-## v1.0.4의 새로운 기능
+## v2.0의 새로운 기능
 
-### 버그 수정
-WebView RPC v1.0.4는 중요한 null 처리 문제를 수정했습니다:
+WebView RPC v2.0은 안정성, 성능, 메모리 관리를 위한 중요한 개선 사항을 도입했습니다.
 
-- **RPC envelope 인코딩 시 null 처리 문제 수정**: `Cannot read properties of null (reading 'length')` 오류 해결
-- **Proto3 사양 준수**: Proto3 사양에 따라 옵셔널 필드를 올바르게 처리
-- **안정성 향상**: 옵셔널 필드가 null로 설정되는 대신 생략되도록 수정
+### 주요 변경 사항
+- **고유한 요청 ID (Breaking Change)**: `RequestId`가 증가하는 숫자 대신 UUID를 사용하도록 변경되어 여러 웹뷰 인스턴스 사용 시 발생할 수 있는 충돌을 방지합니다.
+- **정확해진 청킹 (Breaking Change)**: `maxChunkSize` 설정이 이제 모든 오버헤드를 포함한 최종 Base64 인코딩 메시지 크기를 정확하게 나타냅니다. `getEffectivePayloadSize()`와 같은 새로운 유틸리티 메서드로 청킹을 정밀하게 설정할 수 있습니다.
+- **개선된 타임아웃 처리**: 요청이 무한정 대기하던 심각한 버그를 수정했습니다. 이제 불완전한 메시지는 올바르게 타임아웃 처리됩니다.
+- **리소스 관리**: RPC 클라이언트, 서버, 브릿지에 `dispose()` 메서드를 추가하여 이벤트 리스너로 인한 메모리 누수를 방지합니다.
 
-전체 변경 내역은 [CHANGELOG.md](CHANGELOG.md)를 참조하세요.
+`app-webview-rpc` 라이브러리의 전체 변경 내역은 [CHANGELOG.md](webview_rpc_runtime_library/CHANGELOG.md)를 참조하세요.
 
 ## 구조도
 WebView RPC는 기존의 `javascript bridge` 방식과 비교하여 작업 흐름이 단순해졌습니다.
@@ -101,7 +102,7 @@ npm run build
 WebView RPC는 [npm 패키지](https://www.npmjs.com/package/app-webview-rpc)로 배포되고 있습니다.
 #### Install
 ```bash
-npm install app-webview-rpc@1.0.4
+npm install app-webview-rpc@2.0.11
 ```
 
 #### Usage
