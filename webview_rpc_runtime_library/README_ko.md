@@ -150,44 +150,169 @@ protoc --version  # Ensure compiler version is 3+
 
 청킹이 활성화되면, `MaxChunkSize`를 초과하는 모든 메시지는 자동으로 더 작은 부분으로 분할됩니다. 각 청크는 개별적으로 전송된 후 수신자에 의해 재조립됩니다. 이 과정은 라이브러리 내부에서 투명하게 처리됩니다.
 
-### 설정 방법
+청킹 시스템은 다음 사항들을 자동으로 고려합니다:
+- **RPC 엔벨로프 오버헤드**: 메타데이터(requestId, method, chunkInfo)를 위한 약 150바이트
+- **Base64 인코딩 오버헤드**: 약 34% 크기 증가
+- **실효 페이로드 크기**: 모든 오버헤드를 제외한 실제 사용 가능한 데이터 크기
 
-청킹 기능이 올바르게 동작하려면 C#(Unity)와 JavaScript(웹뷰) 양쪽 모두에서 활성화하고 설정해야 합니다.
+### 설정 옵션
 
-#### Unity (C#) 설정
+WebView RPC는 `WebViewRpcConfiguration`을 통해 여러 설정 옵션을 제공합니다:
 
-Unity 스크립트에서 클라이언트 또는 서버를 초기화하기 전에 설정을 구성합니다.
+#### 1. 청킹 활성화/비활성화
 
+청킹 기능의 활성화 여부를 제어합니다. 비활성화하면 큰 메시지가 그대로 전송되며, 크기 제한이 있는 환경에서는 실패할 수 있습니다.
+
+**Unity (C#)**
 ```csharp
-using WebViewRPC;
-// ...
+WebViewRpcConfiguration.EnableChunking = true;  // 기본값: true
+```
 
-void Start()
+**JavaScript**
+```javascript
+WebViewRpcConfiguration.enableChunking = true;  // 기본값: true
+```
+
+#### 2. 최대 청크 크기
+
+최종 Base64 인코딩된 메시지의 최대 크기를 설정합니다. 라이브러리는 인코딩 오버헤드를 고려하여 실효 페이로드 크기를 자동으로 계산합니다.
+
+**Unity (C#)**
+```csharp
+// 최대 청크 크기를 900바이트로 설정 (1KB 제한 환경에 권장)
+WebViewRpcConfiguration.MaxChunkSize = 900;  // 기본값: 256KB
+// 최소: ~335바이트 (동적으로 계산됨)
+// 최대: 10MB
+```
+
+**JavaScript**
+```javascript
+// 최대 청크 크기를 900바이트로 설정
+WebViewRpcConfiguration.maxChunkSize = 900;  // 기본값: 256KB
+```
+
+#### 3. 청크 타임아웃
+
+불완전한 청크 세트를 정리하기 전까지 대기하는 시간을 설정합니다.
+
+**Unity (C#)**
+```csharp
+WebViewRpcConfiguration.ChunkTimeoutSeconds = 30;  // 기본값: 30초
+// 최소: 5초
+// 최대: 300초 (5분)
+```
+
+**JavaScript**
+```javascript
+WebViewRpcConfiguration.chunkTimeoutSeconds = 30;  // 기본값: 30초
+```
+
+#### 4. 최대 동시 청크 세트
+
+메모리 고갈을 방지하기 위해 동시에 처리할 수 있는 청크 메시지의 수를 제한합니다.
+
+**Unity (C#)**
+```csharp
+WebViewRpcConfiguration.MaxConcurrentChunkSets = 100;  // 기본값: 100
+// 최소: 10
+// 최대: 1000
+```
+
+**JavaScript**
+```javascript
+WebViewRpcConfiguration.maxConcurrentChunkSets = 100;  // 기본값: 100
+```
+
+### 유틸리티 메서드
+
+WebView RPC는 청크 크기를 이해하고 최적화하는 데 도움이 되는 유틸리티 메서드를 제공합니다:
+
+**Unity (C#)**
+```csharp
+// 오버헤드를 제외한 실제 사용 가능한 페이로드 크기 확인
+int effectiveSize = WebViewRpcConfiguration.GetEffectivePayloadSize();
+Console.WriteLine($"실효 페이로드 크기: {effectiveSize} 바이트");
+
+// 최소 안전 청크 크기 확인
+int minSize = WebViewRpcConfiguration.GetMinimumSafeChunkSize();
+Console.WriteLine($"최소 청크 크기: {minSize} 바이트");
+
+// 현재 설정 유효성 검증
+bool isValid = WebViewRpcConfiguration.IsChunkSizeValid();
+if (!isValid)
 {
-    // 청킹 활성화 및 최대 청크 크기 설정 (예: 900바이트)
-    WebViewRpcConfiguration.EnableChunking = true;
-    WebViewRpcConfiguration.MaxChunkSize = 900;
-
-    // ... RPC 클라이언트/서버 초기화
+    Console.WriteLine("경고: 청크 크기가 너무 작아 의미 있는 페이로드를 담을 수 없습니다");
 }
 ```
 
-#### JavaScript 설정
-
-마찬가지로 JavaScript 코드에서도 설정을 구성합니다.
-
+**JavaScript**
 ```javascript
-import { WebViewRpcConfiguration } from 'app-webview-rpc';
+// 오버헤드를 제외한 실제 사용 가능한 페이로드 크기 확인
+const effectiveSize = WebViewRpcConfiguration.getEffectivePayloadSize();
+console.log(`실효 페이로드 크기: ${effectiveSize} 바이트`);
 
-// 청킹 활성화 및 최대 청크 크기 설정
+// 최소 안전 청크 크기 확인
+const minSize = WebViewRpcConfiguration.getMinimumSafeChunkSize();
+console.log(`최소 청크 크기: ${minSize} 바이트`);
+
+// 현재 설정 유효성 검증
+const isValid = WebViewRpcConfiguration.isChunkSizeValid();
+if (!isValid) {
+    console.warn("청크 크기가 너무 작아 의미 있는 페이로드를 담을 수 없습니다");
+}
+```
+
+### 모범 사례
+
+1. **크기 설정**: 1KB 제한이 있는 안드로이드 WebView의 경우 `MaxChunkSize = 900` 사용을 권장
+2. **일관된 설정**: Unity와 JavaScript가 동일한 설정 값을 사용하도록 보장
+3. **성능 모니터링**: 작은 실효 페이로드 크기에 대한 경고가 표시되면 `MaxChunkSize` 증가 고려
+4. **타임아웃 조정**: 네트워크 상태와 메시지 크기에 따라 `ChunkTimeoutSeconds` 조정
+5. **테스트**: 예상되는 최대 크기의 메시지로 청킹이 원활하게 작동하는지 테스트
+
+### 예시: 전체 설정
+
+**Unity (C#)**
+```csharp
+void Start()
+{
+    // 1KB 제한이 있는 안드로이드 WebView를 위한 설정
+    WebViewRpcConfiguration.EnableChunking = true;
+    WebViewRpcConfiguration.MaxChunkSize = 900;
+    WebViewRpcConfiguration.ChunkTimeoutSeconds = 60;  // 느린 네트워크를 위해 1분
+    WebViewRpcConfiguration.MaxConcurrentChunkSets = 50;  // 동시 작업 제한
+    
+    // 설정 검증
+    int effectiveSize = WebViewRpcConfiguration.GetEffectivePayloadSize();
+    Debug.Log($"청크당 실효 페이로드 크기: {effectiveSize} 바이트로 구성됨");
+    
+    // RPC 클라이언트/서버 초기화
+    var bridge = new ViewplexWebViewBridge(webViewPrefab);
+    var server = new WebViewRPC.WebViewRpcServer(bridge);
+    // ... 나머지 초기화
+}
+```
+
+**JavaScript**
+```javascript
+// Unity 설정과 일치하도록 구성
 WebViewRpcConfiguration.enableChunking = true;
 WebViewRpcConfiguration.maxChunkSize = 900;
+WebViewRpcConfiguration.chunkTimeoutSeconds = 60;
+WebViewRpcConfiguration.maxConcurrentChunkSets = 50;
 
-// ... RPC 클라이언트/서버 초기화
+// 설정 검증
+const effectiveSize = WebViewRpcConfiguration.getEffectivePayloadSize();
+console.log(`청크당 실효 페이로드 크기: ${effectiveSize} 바이트로 구성됨`);
+
+// RPC 클라이언트/서버 초기화
+const bridge = new VuplexBridge();
+const rpcServer = new WebViewRpcServer(bridge);
+// ... 나머지 초기화
 ```
 
 > [!NOTE]
-> 청킹이 안정적으로 동작하려면 C#과 JavaScript 양쪽의 `MaxChunkSize`가 동일해야 합니다. 안드로이드의 일반적인 1KB 제한을 안전하게 피하려면 이 값을 약 900바이트로 설정하는 것이 좋습니다.
+> 청킹이 안정적으로 동작하려면 C#과 JavaScript 양쪽이 동일한 설정을 가져야 합니다. 항상 RPC 클라이언트나 서버를 초기화하기 전에 양쪽을 모두 설정하세요.
 
 
 ## 빠른 시작

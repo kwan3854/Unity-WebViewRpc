@@ -172,44 +172,169 @@ To handle environments with message size limitations, such as certain Android We
 
 When chunking is enabled, any message exceeding `MaxChunkSize` is automatically divided into smaller parts. Each chunk is sent individually and then reassembled by the receiver. This process is handled transparently by the library.
 
-### Configuration
+The chunking system automatically accounts for:
+- **RPC Envelope Overhead**: Approximately 150 bytes for metadata (requestId, method, chunkInfo)
+- **Base64 Encoding Overhead**: About 34% increase in size
+- **Effective Payload Size**: Actual usable data size after accounting for all overheads
 
-Chunking must be enabled and configured on both the C# (Unity) and JavaScript (WebView) sides to work correctly.
+### Configuration Options
 
-#### Unity (C#) Configuration
+WebView RPC provides several configuration options through `WebViewRpcConfiguration`:
 
-In your Unity script, configure the settings before initializing the client or server.
+#### 1. Enable/Disable Chunking
 
+Control whether chunking is active. When disabled, large messages will be sent as-is, which may fail in environments with size limitations.
+
+**Unity (C#)**
 ```csharp
-using WebViewRPC;
-// ...
+WebViewRpcConfiguration.EnableChunking = true;  // Default: true
+```
 
-void Start()
+**JavaScript**
+```javascript
+WebViewRpcConfiguration.enableChunking = true;  // Default: true
+```
+
+#### 2. Maximum Chunk Size
+
+Sets the maximum size of the final Base64-encoded message. The library automatically calculates the effective payload size after accounting for encoding overhead.
+
+**Unity (C#)**
+```csharp
+// Set max chunk size to 900 bytes (recommended for 1KB limit environments)
+WebViewRpcConfiguration.MaxChunkSize = 900;  // Default: 256KB
+// Minimum: ~335 bytes (dynamically calculated)
+// Maximum: 10MB
+```
+
+**JavaScript**
+```javascript
+// Set max chunk size to 900 bytes
+WebViewRpcConfiguration.maxChunkSize = 900;  // Default: 256KB
+```
+
+#### 3. Chunk Timeout
+
+Configure how long to wait for incomplete chunk sets before cleaning them up.
+
+**Unity (C#)**
+```csharp
+WebViewRpcConfiguration.ChunkTimeoutSeconds = 30;  // Default: 30 seconds
+// Minimum: 5 seconds
+// Maximum: 300 seconds (5 minutes)
+```
+
+**JavaScript**
+```javascript
+WebViewRpcConfiguration.chunkTimeoutSeconds = 30;  // Default: 30 seconds
+```
+
+#### 4. Maximum Concurrent Chunk Sets
+
+Limit the number of simultaneous chunked messages to prevent memory exhaustion.
+
+**Unity (C#)**
+```csharp
+WebViewRpcConfiguration.MaxConcurrentChunkSets = 100;  // Default: 100
+// Minimum: 10
+// Maximum: 1000
+```
+
+**JavaScript**
+```javascript
+WebViewRpcConfiguration.maxConcurrentChunkSets = 100;  // Default: 100
+```
+
+### Utility Methods
+
+WebView RPC provides utility methods to help you understand and optimize chunk sizing:
+
+**Unity (C#)**
+```csharp
+// Get the actual payload size available after overhead
+int effectiveSize = WebViewRpcConfiguration.GetEffectivePayloadSize();
+Console.WriteLine($"Effective payload size: {effectiveSize} bytes");
+
+// Get the minimum safe chunk size
+int minSize = WebViewRpcConfiguration.GetMinimumSafeChunkSize();
+Console.WriteLine($"Minimum chunk size: {minSize} bytes");
+
+// Validate current configuration
+bool isValid = WebViewRpcConfiguration.IsChunkSizeValid();
+if (!isValid)
 {
-    // Enable chunking and set the max chunk size (e.g., 900 bytes)
-    WebViewRpcConfiguration.EnableChunking = true;
-    WebViewRpcConfiguration.MaxChunkSize = 900;
-
-    // ... initialize your RPC client/server
+    Console.WriteLine("Warning: Chunk size too small for meaningful payload");
 }
 ```
 
-#### JavaScript Configuration
-
-Similarly, configure the settings in your JavaScript code.
-
+**JavaScript**
 ```javascript
-import { WebViewRpcConfiguration } from 'app-webview-rpc';
+// Get the actual payload size available after overhead
+const effectiveSize = WebViewRpcConfiguration.getEffectivePayloadSize();
+console.log(`Effective payload size: ${effectiveSize} bytes`);
 
-// Enable chunking and set the max chunk size
+// Get the minimum safe chunk size
+const minSize = WebViewRpcConfiguration.getMinimumSafeChunkSize();
+console.log(`Minimum chunk size: ${minSize} bytes`);
+
+// Validate current configuration
+const isValid = WebViewRpcConfiguration.isChunkSizeValid();
+if (!isValid) {
+    console.warn("Chunk size too small for meaningful payload");
+}
+```
+
+### Best Practices
+
+1. **Size Configuration**: For Android WebViews with 1KB limits, use `MaxChunkSize = 900` to safely stay under the limit
+2. **Consistent Settings**: Ensure both Unity and JavaScript use identical configuration values
+3. **Monitor Performance**: If you see warnings about small effective payload sizes, consider increasing `MaxChunkSize`
+4. **Timeout Tuning**: Adjust `ChunkTimeoutSeconds` based on your network conditions and message sizes
+5. **Testing**: Test with your largest expected messages to ensure chunking works smoothly
+
+### Example: Complete Configuration
+
+**Unity (C#)**
+```csharp
+void Start()
+{
+    // Configure for Android WebView with 1KB limit
+    WebViewRpcConfiguration.EnableChunking = true;
+    WebViewRpcConfiguration.MaxChunkSize = 900;
+    WebViewRpcConfiguration.ChunkTimeoutSeconds = 60;  // 1 minute for slow networks
+    WebViewRpcConfiguration.MaxConcurrentChunkSets = 50;  // Limit concurrent operations
+    
+    // Verify configuration
+    int effectiveSize = WebViewRpcConfiguration.GetEffectivePayloadSize();
+    Debug.Log($"Configured with effective payload size: {effectiveSize} bytes per chunk");
+    
+    // Initialize RPC client/server
+    var bridge = new ViewplexWebViewBridge(webViewPrefab);
+    var server = new WebViewRPC.WebViewRpcServer(bridge);
+    // ... rest of initialization
+}
+```
+
+**JavaScript**
+```javascript
+// Configure to match Unity settings
 WebViewRpcConfiguration.enableChunking = true;
 WebViewRpcConfiguration.maxChunkSize = 900;
+WebViewRpcConfiguration.chunkTimeoutSeconds = 60;
+WebViewRpcConfiguration.maxConcurrentChunkSets = 50;
 
-// ... initialize your RPC client/server
+// Verify configuration
+const effectiveSize = WebViewRpcConfiguration.getEffectivePayloadSize();
+console.log(`Configured with effective payload size: ${effectiveSize} bytes per chunk`);
+
+// Initialize RPC client/server
+const bridge = new VuplexBridge();
+const rpcServer = new WebViewRpcServer(bridge);
+// ... rest of initialization
 ```
 
 > [!NOTE]
-> Both the C# and JavaScript sides must have the same `MaxChunkSize` for chunking to function reliably. It is recommended to set this value to around 900 bytes to safely stay under the typical 1KB limit on Android.
+> Both the C# and JavaScript sides must have the same configuration for chunking to function reliably. Always configure both sides before initializing any RPC clients or servers.
 
 ## Quick Start
 
