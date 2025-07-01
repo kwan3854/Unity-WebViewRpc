@@ -16,10 +16,9 @@ namespace WebViewRPC
             public int TotalChunks { get; set; }
             public int OriginalSize { get; set; }
             public DateTime LastActivity { get; set; }
-            public string RequestId { get; set; }
         }
 
-        private readonly Dictionary<string, ChunkSet> _chunkSets = new();
+        private readonly Dictionary<string, ChunkSet> _chunkSetsByRequest = new();
         private readonly object _lock = new object();
 
         /// <summary>
@@ -46,31 +45,31 @@ namespace WebViewRPC
             lock (_lock)
             {
                 var chunkInfo = envelope.ChunkInfo;
+                var requestId = envelope.RequestId;
 
-                // Check if we've reached the maximum number of chunk sets
-                if (!_chunkSets.ContainsKey(chunkInfo.ChunkSetId) &&
-                    _chunkSets.Count >= WebViewRpcConfiguration.MaxConcurrentChunkSets)
+                // Check if we've reached the maximum number of concurrent requests
+                if (!_chunkSetsByRequest.ContainsKey(requestId) &&
+                    _chunkSetsByRequest.Count >= WebViewRpcConfiguration.MaxConcurrentChunkSets)
                 {
-                    // Remove the oldest chunk set
-                    var oldestKey = _chunkSets
+                    // Remove the oldest request
+                    var oldestKey = _chunkSetsByRequest
                         .OrderBy(kvp => kvp.Value.LastActivity)
                         .First()
                         .Key;
-                    _chunkSets.Remove(oldestKey);
+                    _chunkSetsByRequest.Remove(oldestKey);
                     Debug.LogWarning(
-                        $"Maximum chunk sets reached ({WebViewRpcConfiguration.MaxConcurrentChunkSets}). Removed oldest chunk set {oldestKey}");
+                        $"Maximum concurrent requests reached ({WebViewRpcConfiguration.MaxConcurrentChunkSets}). Removed oldest request {oldestKey}");
                 }
 
-                if (!_chunkSets.TryGetValue(chunkInfo.ChunkSetId, out var chunkSet))
+                if (!_chunkSetsByRequest.TryGetValue(requestId, out var chunkSet))
                 {
                     chunkSet = new ChunkSet
                     {
                         TotalChunks = chunkInfo.TotalChunks,
                         OriginalSize = chunkInfo.OriginalSize,
-                        LastActivity = DateTime.UtcNow,
-                        RequestId = envelope.RequestId
+                        LastActivity = DateTime.UtcNow
                     };
-                    _chunkSets[chunkInfo.ChunkSetId] = chunkSet;
+                    _chunkSetsByRequest[requestId] = chunkSet;
                 }
 
                 // Add chunk
@@ -88,7 +87,7 @@ namespace WebViewRPC
                     {
                         if (!chunkSet.Chunks.TryGetValue(i, out var chunk))
                         {
-                            Debug.LogError($"Missing chunk {i} in set {chunkInfo.ChunkSetId}");
+                            Debug.LogError($"Missing chunk {i} for request {requestId}");
                             return null;
                         }
 
@@ -97,7 +96,7 @@ namespace WebViewRPC
                     }
 
                     // Clean up
-                    _chunkSets.Remove(chunkInfo.ChunkSetId);
+                    _chunkSetsByRequest.Remove(requestId);
 
                     // Verify size
                     if (offset != chunkSet.OriginalSize)
@@ -109,18 +108,18 @@ namespace WebViewRPC
                     return result;
                 }
 
-                // Cleanup old chunk sets (older than configured timeout)
+                // Cleanup old requests (older than configured timeout)
                 var cutoff = DateTime.UtcNow.AddSeconds(-WebViewRpcConfiguration.ChunkTimeoutSeconds);
-                var toRemove = _chunkSets
+                var toRemove = _chunkSetsByRequest
                     .Where(kvp => kvp.Value.LastActivity < cutoff)
                     .ToList();
 
                 foreach (var kvp in toRemove)
                 {
-                    timedOutRequestIds.Add(kvp.Value.RequestId);
-                    _chunkSets.Remove(kvp.Key);
+                    timedOutRequestIds.Add(kvp.Key);
+                    _chunkSetsByRequest.Remove(kvp.Key);
                     Debug.LogWarning(
-                        $"Removed incomplete chunk set {kvp.Key} for request {kvp.Value.RequestId} due to timeout");
+                        $"Removed incomplete chunks for request {kvp.Key} due to timeout");
                 }
 
                 return null; // Not all chunks received yet

@@ -1,6 +1,6 @@
 {
   "name": "com.kwanjoong.webviewrpc",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "displayName": "Webview RPC",
   "description": "The webview Remote Procedure Call bridge.",
   "unity": "2022.3",
@@ -20,7 +20,7 @@
     "url": "https://github.com/kwan3854/Unity-WebviewRpc.git"
   },
   "dependencies": {
-
+    "com.cysharp.unitask": "2.5.10"
   },
   "license": "MIT"
 }

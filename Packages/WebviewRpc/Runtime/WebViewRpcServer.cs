@@ -9,10 +9,11 @@ namespace WebViewRPC
 {
     public class WebViewRpcServer : IDisposable
     {
+        private bool _disposed;
+        
         private readonly IWebViewBridge _bridge;
         private readonly ChunkAssembler _chunkAssembler = new();
-        private bool _disposed;
-        private CancellationTokenSource _cancellationTokenSource = new();
+        private readonly CancellationTokenSource _cancellationTokenSource = new();
 
         /// <summary>
         /// You can add multiple services to the server.
@@ -202,7 +203,6 @@ namespace WebViewRPC
             // Check disposed state before starting
             if (_disposed || cancellationToken.IsCancellationRequested) return;
             
-            var chunkSetId = $"{requestId}_{Guid.NewGuid():N}";
             int effectivePayloadSize = WebViewRpcConfiguration.GetEffectivePayloadSize();
             var totalChunks = (int)Math.Ceiling((double)data.Length / effectivePayloadSize);
             
@@ -224,7 +224,7 @@ namespace WebViewRPC
                     Payload = ByteString.CopyFrom(chunkData),
                     ChunkInfo = new ChunkInfo
                     {
-                        ChunkSetId = chunkSetId,
+                        ChunkSetId = "",
                         ChunkIndex = i,
                         TotalChunks = totalChunks,
                         OriginalSize = data.Length

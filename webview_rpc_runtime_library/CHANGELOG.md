@@ -5,7 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.9] - 2025-01-22
+## [2.0.11] - 2025-07-01
+### Fixed
+- Corrected release dates in CHANGELOG.md
+
+## [2.0.10] - 2025-07-01
+### Changed
+- **BREAKING**: RequestId generation changed from incremental integer to UUID/GUID for true uniqueness across multiple WebView instances
+- Simplified chunk management by removing ChunkSetId dependency and using RequestId directly
+- Improved performance by eliminating unnecessary string concatenation operations
+- ChunkAssembler now manages chunks by RequestId instead of ChunkSetId
+
+### Fixed
+- Fixed potential RequestId collisions when multiple WebView instances are used simultaneously
+
+## [2.0.9] - 2025-06-30
 
 ### Added
 - `maxConcurrentChunkSets` configuration option (default: 100, min: 10, max: 1000)
@@ -22,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ChunkAssembler now returns timed out request IDs for proper cleanup
 - Both Unity and JavaScript implementations now handle chunk timeouts consistently
 
-## [2.0.8] - 2025-01-22
+## [2.0.8] - 2025-06-30
 
 ### Added
 - Proper dispose pattern for JavaScript components
@@ -41,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Memory leaks from unremoved event listeners
 - Potential resource leaks when page navigates away
 
-## [2.0.7] - 2025-01-22
+## [2.0.7] - 2025-06-30
 
 ### Fixed
 - Improved error handling: errors now take precedence over payload
@@ -52,7 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Error responses can now include payload data if available
 - Clearer error messages when methods return null without setting an error
 
-## [2.0.6] - 2025-01-22
+## [2.0.6] - 2025-06-30
 
 ### Added
 - Smart chunk size calculation that accounts for RPC envelope and Base64 encoding overhead

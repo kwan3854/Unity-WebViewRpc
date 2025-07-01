@@ -12,11 +12,11 @@ namespace WebViewRPC
         /// <summary>
         /// C# to WebView send string
         /// </summary>
-        void SendMessageToWeb(string message);
+        public void SendMessageToWeb(string message);
 
         /// <summary>
         /// JS to C# receive string
         /// </summary>
-        event Action<string> OnMessageReceived;
+        public event Action<string> OnMessageReceived;
     }
 }
