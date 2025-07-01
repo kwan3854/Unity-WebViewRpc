@@ -294,47 +294,105 @@ if (!isValid) {
 
 ### Example: Complete Configuration
 
+#### Scenario 1: Identical Settings (Recommended)
+Using the same configuration on both sides for bidirectional consistency:
+
 **Unity (C#)**
 ```csharp
 void Start()
 {
-    // Configure for Android WebView with 1KB limit
+    // Match the most restrictive environment (Android WebView 1KB)
     WebViewRpcConfiguration.EnableChunking = true;
     WebViewRpcConfiguration.MaxChunkSize = 900;
-    WebViewRpcConfiguration.ChunkTimeoutSeconds = 60;  // 1 minute for slow networks
-    WebViewRpcConfiguration.MaxConcurrentChunkSets = 50;  // Limit concurrent operations
+    WebViewRpcConfiguration.ChunkTimeoutSeconds = 60;
+    WebViewRpcConfiguration.MaxConcurrentChunkSets = 50;
     
     // Verify configuration
     int effectiveSize = WebViewRpcConfiguration.GetEffectivePayloadSize();
-    Debug.Log($"Configured with effective payload size: {effectiveSize} bytes per chunk");
+    Debug.Log($"Sending with effective payload: {effectiveSize} bytes per chunk");
     
-    // Initialize RPC client/server
+    // Initialize RPC
     var bridge = new ViewplexWebViewBridge(webViewPrefab);
     var server = new WebViewRPC.WebViewRpcServer(bridge);
-    // ... rest of initialization
 }
 ```
 
 **JavaScript**
 ```javascript
-// Configure to match Unity settings
+// Match Unity settings for bidirectional consistency
 WebViewRpcConfiguration.enableChunking = true;
 WebViewRpcConfiguration.maxChunkSize = 900;
 WebViewRpcConfiguration.chunkTimeoutSeconds = 60;
 WebViewRpcConfiguration.maxConcurrentChunkSets = 50;
 
-// Verify configuration
 const effectiveSize = WebViewRpcConfiguration.getEffectivePayloadSize();
-console.log(`Configured with effective payload size: ${effectiveSize} bytes per chunk`);
+console.log(`Sending with effective payload: ${effectiveSize} bytes per chunk`);
 
-// Initialize RPC client/server
 const bridge = new VuplexBridge();
 const rpcServer = new WebViewRpcServer(bridge);
-// ... rest of initialization
 ```
 
+#### Scenario 2: Different Chunk Sizes
+Using different chunk sizes within the same platform constraints:
+
+**Android WebView Environment Example (1KB limit both directions)**
+```csharp
+// Unity (C#)
+void Start()
+{
+    WebViewRpcConfiguration.EnableChunking = true;
+    WebViewRpcConfiguration.MaxChunkSize = 990;  // Unity uses 990-byte chunks
+    WebViewRpcConfiguration.ChunkTimeoutSeconds = 60;
+    WebViewRpcConfiguration.MaxConcurrentChunkSets = 50;
+    
+    Debug.Log("Unity: Sending with 990-byte chunks, can receive any size");
+}
+```
+
+```javascript
+// JavaScript
+WebViewRpcConfiguration.enableChunking = true;
+WebViewRpcConfiguration.maxChunkSize = 800;  // JS uses 800-byte chunks
+WebViewRpcConfiguration.chunkTimeoutSeconds = 60;
+WebViewRpcConfiguration.maxConcurrentChunkSets = 50;
+
+console.log("JS: Sending with 800-byte chunks, can receive any size");
+```
+
+**Regular Browser Environment Example (large messages supported)**
+```csharp
+// Unity (C#)
+WebViewRpcConfiguration.MaxChunkSize = 1024 * 1024;  // 1MB chunks
+```
+
+```javascript
+// JavaScript  
+WebViewRpcConfiguration.maxChunkSize = 256 * 1024;  // 256KB chunks
+```
+
+> While each side can use different chunk sizes under the same platform constraints, there's little practical benefit to doing so.
+
 > [!NOTE]
-> Both the C# and JavaScript sides must have the same configuration for chunking to function reliably. Always configure both sides before initializing any RPC clients or servers.
+> **Chunking Configuration Independence and Platform Constraints**
+> 
+> **Platform/bridge constraints apply equally to both directions**:
+> - Android WebView environment: Unity ↔ JavaScript both limited to ~1KB
+> - iOS WKWebView environment: Unity ↔ JavaScript both support larger messages
+> - Regular browser environment: Most support large messages
+> 
+> **Technical Flexibility**:
+> - **Sender**: Can set MaxChunkSize freely within platform constraints
+> - **Receiver**: Can receive and reassemble chunks of any size (MaxChunkSize doesn't affect reception)
+> 
+> **Example - Android WebView Environment (1KB limit)**:
+> - Unity side: Sets MaxChunkSize = 990 bytes for sending
+> - JavaScript side: Sets MaxChunkSize = 800 bytes for sending
+> - Both sides receive and reassemble chunks from each other without issues
+> 
+> **Recommendations**:
+> 1. **Required**: Identify your platform/bridge message size limitations
+> 2. **Optional Unification**: Use identical settings for easier maintenance and debugging
+> 3. **Receiver Settings**: ChunkTimeoutSeconds and MaxConcurrentChunkSets affect receiver behavior
 
 ## Quick Start
 

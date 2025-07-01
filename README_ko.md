@@ -272,47 +272,105 @@ if (!isValid) {
 
 ### 예시: 전체 설정
 
+#### 시나리오 1: 동일한 설정 (권장)
+양방향 통신에서 일관성을 위해 양쪽을 동일하게 설정하는 경우:
+
 **Unity (C#)**
 ```csharp
 void Start()
 {
-    // 1KB 제한이 있는 안드로이드 WebView를 위한 설정
+    // 가장 제한적인 환경(Android WebView 1KB)에 맞춤
     WebViewRpcConfiguration.EnableChunking = true;
     WebViewRpcConfiguration.MaxChunkSize = 900;
-    WebViewRpcConfiguration.ChunkTimeoutSeconds = 60;  // 느린 네트워크를 위해 1분
-    WebViewRpcConfiguration.MaxConcurrentChunkSets = 50;  // 동시 작업 제한
+    WebViewRpcConfiguration.ChunkTimeoutSeconds = 60;
+    WebViewRpcConfiguration.MaxConcurrentChunkSets = 50;
     
     // 설정 검증
     int effectiveSize = WebViewRpcConfiguration.GetEffectivePayloadSize();
-    Debug.Log($"청크당 실효 페이로드 크기: {effectiveSize} 바이트로 구성됨");
+    Debug.Log($"송신 시 청크당 실효 페이로드: {effectiveSize} 바이트");
     
-    // RPC 클라이언트/서버 초기화
+    // RPC 초기화
     var bridge = new ViewplexWebViewBridge(webViewPrefab);
     var server = new WebViewRPC.WebViewRpcServer(bridge);
-    // ... 나머지 초기화
 }
 ```
 
 **JavaScript**
 ```javascript
-// Unity 설정과 일치하도록 구성
+// Unity와 동일하게 설정 (양방향 일관성)
 WebViewRpcConfiguration.enableChunking = true;
 WebViewRpcConfiguration.maxChunkSize = 900;
 WebViewRpcConfiguration.chunkTimeoutSeconds = 60;
 WebViewRpcConfiguration.maxConcurrentChunkSets = 50;
 
-// 설정 검증
 const effectiveSize = WebViewRpcConfiguration.getEffectivePayloadSize();
-console.log(`청크당 실효 페이로드 크기: ${effectiveSize} 바이트로 구성됨`);
+console.log(`송신 시 청크당 실효 페이로드: ${effectiveSize} 바이트`);
 
-// RPC 클라이언트/서버 초기화
 const bridge = new VuplexBridge();
 const rpcServer = new WebViewRpcServer(bridge);
-// ... 나머지 초기화
 ```
 
+#### 시나리오 2: 서로 다른 청크 크기 설정
+같은 플랫폼 제약 내에서 각 측이 다른 청크 크기를 사용하는 경우:
+
+**Android WebView 환경 예시 (양방향 1KB 제한)**
+```csharp
+// Unity (C#)
+void Start()
+{
+    WebViewRpcConfiguration.EnableChunking = true;
+    WebViewRpcConfiguration.MaxChunkSize = 990;  // Unity는 990바이트 청크 사용
+    WebViewRpcConfiguration.ChunkTimeoutSeconds = 60;
+    WebViewRpcConfiguration.MaxConcurrentChunkSets = 50;
+    
+    Debug.Log("Unity: 990바이트 청크로 송신, 모든 크기 수신 가능");
+}
+```
+
+```javascript
+// JavaScript
+WebViewRpcConfiguration.enableChunking = true;
+WebViewRpcConfiguration.maxChunkSize = 800;  // JS는 800바이트 청크 사용
+WebViewRpcConfiguration.chunkTimeoutSeconds = 60;
+WebViewRpcConfiguration.maxConcurrentChunkSets = 50;
+
+console.log("JS: 800바이트 청크로 송신, 모든 크기 수신 가능");
+```
+
+**일반 브라우저 환경 예시 (큰 메시지 지원)**
+```csharp
+// Unity (C#)
+WebViewRpcConfiguration.MaxChunkSize = 1024 * 1024;  // 1MB 청크
+```
+
+```javascript
+// JavaScript  
+WebViewRpcConfiguration.maxChunkSize = 256 * 1024;  // 256KB 청크
+```
+
+> 동일한 플랫폼 제약 하에서도 각 측이 다른 청크 크기를 사용할 수 있지만, 실용적 이점은 거의 없습니다.
+
 > [!NOTE]
-> 청킹이 안정적으로 동작하려면 C#과 JavaScript 양쪽이 동일한 설정을 가져야 합니다. 항상 RPC 클라이언트나 서버를 초기화하기 전에 양쪽을 모두 설정하세요.
+> **청킹 설정의 독립성과 플랫폼 제약**
+> 
+> **플랫폼/브릿지 제약은 양방향 모두에 동일하게 적용됩니다**:
+> - Android WebView 환경: Unity ↔ JavaScript 양방향 모두 ~1KB 제한
+> - iOS WKWebView 환경: Unity ↔ JavaScript 양방향 모두 더 큰 메시지 지원
+> - 일반 브라우저 환경: 대부분 큰 메시지 지원
+> 
+> **기술적 유연성**:
+> - **송신 측**: 플랫폼 제약 내에서 자유롭게 MaxChunkSize 설정 가능
+> - **수신 측**: 어떤 크기의 청크든 받아서 조립 가능 (MaxChunkSize는 수신에 영향 없음)
+> 
+> **예시 - Android WebView 환경 (1KB 제한)**:
+> - Unity 측: MaxChunkSize = 990 바이트로 설정하여 송신
+> - JavaScript 측: MaxChunkSize = 800 바이트로 설정하여 송신
+> - 양쪽 모두 상대방이 보낸 청크를 문제없이 수신/조립
+> 
+> **권장사항**:
+> 1. **필수**: 사용 중인 플랫폼/브릿지의 메시지 크기 제한 확인
+> 2. **선택적 통일**: 유지보수와 디버깅을 위해 양쪽을 동일하게 설정
+> 3. **수신 설정**: ChunkTimeoutSeconds와 MaxConcurrentChunkSets는 수신 측 동작에 영향
 
 
 ## 빠른 시작
