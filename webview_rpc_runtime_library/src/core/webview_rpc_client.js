@@ -11,7 +11,6 @@ export class WebViewRpcClient {
     constructor(bridge) {
         this._bridge = bridge;
         this._pendingRequests = new Map();
-        this._requestIdCounter = 1;
         this._disposed = false;
         this._chunkAssembler = new ChunkAssembler();
 
@@ -32,7 +31,7 @@ export class WebViewRpcClient {
             throw new Error('RpcClient is disposed');
         }
 
-        const requestId = String(this._requestIdCounter++);
+        const requestId = crypto.randomUUID();
         
         // Create promise for this request
         const promise = new Promise((resolve, reject) => {
@@ -67,7 +66,6 @@ export class WebViewRpcClient {
      * @private
      */
     async _sendChunkedMessage(requestId, method, data, isRequest) {
-        const chunkSetId = `${requestId}_${crypto.randomUUID()}`;
         const effectivePayloadSize = WebViewRpcConfiguration.getEffectivePayloadSize();
         const totalChunks = Math.ceil(data.length / effectivePayloadSize);
 
@@ -82,7 +80,7 @@ export class WebViewRpcClient {
                 method,
                 payload: chunkData,
                 chunkInfo: {
-                    chunkSetId,
+                    chunkSetId: '',
                     chunkIndex: i,
                     totalChunks,
                     originalSize: data.length

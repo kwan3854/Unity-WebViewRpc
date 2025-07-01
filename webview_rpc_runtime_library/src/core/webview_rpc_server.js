@@ -185,7 +185,6 @@ export class WebViewRpcServer {
      * @private
      */
     async _sendChunkedMessage(requestId, method, data, isRequest, error = null) {
-        const chunkSetId = `${requestId}_${crypto.randomUUID()}`;
         const effectivePayloadSize = WebViewRpcConfiguration.getEffectivePayloadSize();
         const totalChunks = Math.ceil(data.length / effectivePayloadSize);
 
@@ -200,7 +199,7 @@ export class WebViewRpcServer {
                 method,
                 payload: chunkData,
                 chunkInfo: {
-                    chunkSetId,
+                    chunkSetId: '',
                     chunkIndex: i,
                     totalChunks,
                     originalSize: data.length

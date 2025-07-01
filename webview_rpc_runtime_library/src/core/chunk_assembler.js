@@ -5,7 +5,7 @@ import { WebViewRpcConfiguration } from './webview_rpc_configuration.js';
  */
 export class ChunkAssembler {
     constructor() {
-        this._chunkSets = new Map();
+        this._chunkSetsByRequest = new Map();
     }
 
     /**
@@ -22,16 +22,16 @@ export class ChunkAssembler {
         }
 
         const chunkInfo = envelope.chunkInfo;
-        const chunkSetId = chunkInfo.chunkSetId;
+        const requestId = envelope.requestId;
 
-        // Check if we've reached the maximum number of chunk sets
-        if (!this._chunkSets.has(chunkSetId) && 
-            this._chunkSets.size >= WebViewRpcConfiguration.maxConcurrentChunkSets) {
-            // Remove the oldest chunk set
+        // Check if we've reached the maximum number of concurrent requests
+        if (!this._chunkSetsByRequest.has(requestId) && 
+            this._chunkSetsByRequest.size >= WebViewRpcConfiguration.maxConcurrentChunkSets) {
+            // Remove the oldest request
             let oldestKey = null;
             let oldestTime = Date.now();
             
-            for (const [key, value] of this._chunkSets) {
+            for (const [key, value] of this._chunkSetsByRequest) {
                 if (value.lastActivity < oldestTime) {
                     oldestTime = value.lastActivity;
                     oldestKey = key;
@@ -39,22 +39,21 @@ export class ChunkAssembler {
             }
             
             if (oldestKey) {
-                this._chunkSets.delete(oldestKey);
-                console.warn(`Maximum chunk sets reached (${WebViewRpcConfiguration.maxConcurrentChunkSets}). Removed oldest chunk set ${oldestKey}`);
+                this._chunkSetsByRequest.delete(oldestKey);
+                console.warn(`Maximum concurrent requests reached (${WebViewRpcConfiguration.maxConcurrentChunkSets}). Removed oldest request ${oldestKey}`);
             }
         }
 
-        if (!this._chunkSets.has(chunkSetId)) {
-            this._chunkSets.set(chunkSetId, {
+        if (!this._chunkSetsByRequest.has(requestId)) {
+            this._chunkSetsByRequest.set(requestId, {
                 chunks: new Map(),
                 totalChunks: chunkInfo.totalChunks,
                 originalSize: chunkInfo.originalSize,
-                lastActivity: Date.now(),
-                requestId: envelope.requestId
+                lastActivity: Date.now()
             });
         }
 
-        const chunkSet = this._chunkSets.get(chunkSetId);
+        const chunkSet = this._chunkSetsByRequest.get(requestId);
         
         // Add chunk
         const chunkIndex = Number(chunkInfo.chunkIndex);
@@ -70,7 +69,7 @@ export class ChunkAssembler {
             for (let i = 1; i <= chunkSet.totalChunks; i++) {
                 const chunk = chunkSet.chunks.get(i);
                 if (!chunk) {
-                    console.error(`Missing chunk ${i} in set ${chunkSetId}`);
+                    console.error(`Missing chunk ${i} for request ${requestId}`);
                     console.error(`Available chunks:`, Array.from(chunkSet.chunks.keys()));
                     return { data: null, timedOutRequestIds };
                 }
@@ -80,7 +79,7 @@ export class ChunkAssembler {
             }
 
             // Clean up
-            this._chunkSets.delete(chunkSetId);
+            this._chunkSetsByRequest.delete(requestId);
 
             // Verify size
             if (offset !== chunkSet.originalSize) {
@@ -91,20 +90,20 @@ export class ChunkAssembler {
             return { data: result, timedOutRequestIds };
         }
 
-        // Cleanup old chunk sets (older than configured timeout)
+        // Cleanup old requests (older than configured timeout)
         const cutoff = Date.now() - (WebViewRpcConfiguration.chunkTimeoutSeconds * 1000);
         const toRemove = [];
         
-        for (const [key, value] of this._chunkSets) {
+        for (const [key, value] of this._chunkSetsByRequest) {
             if (value.lastActivity < cutoff) {
-                toRemove.push({ key, requestId: value.requestId });
+                toRemove.push(key);
             }
         }
 
-        for (const { key, requestId } of toRemove) {
+        for (const requestId of toRemove) {
             timedOutRequestIds.push(requestId);
-            this._chunkSets.delete(key);
-            console.warn(`Removed incomplete chunk set ${key} for request ${requestId} due to timeout`);
+            this._chunkSetsByRequest.delete(requestId);
+            console.warn(`Removed incomplete chunks for request ${requestId} due to timeout`);
         }
 
         return { data: null, timedOutRequestIds }; // Not all chunks received yet
