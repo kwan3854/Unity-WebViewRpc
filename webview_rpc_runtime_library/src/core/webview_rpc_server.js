@@ -64,7 +64,6 @@ export class WebViewRpcServer {
             
             // Respond to ready check requests
             if (envelope.method === '__SYSTEM_READY_CHECK__' && envelope.isRequest) {
-                console.log(`[WebViewRpcServer] Received ready check request #${envelope.requestId}`);
                 
                 const responseEnvelope = {
                     requestId: envelope.requestId,
@@ -77,7 +76,6 @@ export class WebViewRpcServer {
                 const responseBase64 = uint8ArrayToBase64(responseBytes);
                 this._bridge.sendMessage(responseBase64);
                 
-                console.log(`[WebViewRpcServer] Sent ready check response for #${envelope.requestId}`);
                 return;
             }
 

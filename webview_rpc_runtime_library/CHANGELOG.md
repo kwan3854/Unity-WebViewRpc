@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2025-07-08
+
+### Changed
+- Removed unnecessary console.log statements for cleaner production output
+- Reduced verbosity of ready check logging
+
+### Fixed
+- Console output was too verbose in production environments
+
+## [2.1.0] - 2025-07-08
+
+### Added
+- Connection handshake mechanism between WebView and Unity
+- Automatic server ready detection before RPC calls
+- Configurable timeout for server ready checks (default: 10 seconds)
+- Retry mechanism with exponential backoff for connection establishment
+- `waitForServerReady()` method for manual ready state checking
+
+### Changed
+- RPC calls now automatically wait for server readiness
+- Improved error handling with `UniTask` instead of `async void` patterns
+- Better exception handling in background tasks
+- Added comprehensive logging for connection state debugging
+
+### Fixed
+- **Critical**: Fixed timing issues where RPC calls would hang indefinitely if server wasn't ready
+- Fixed race conditions when WebView loads before Unity server initialization
+- Fixed potential crashes from unhandled exceptions in ready check loops
+- Resolved issues with immediate RPC calls after page load
+
 ## [2.0.11] - 2025-07-01
 ### Fixed
 - Corrected release dates in CHANGELOG.md
