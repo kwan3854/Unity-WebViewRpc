@@ -33,7 +33,6 @@ export class WebViewRpcClient {
      */
     _startReadyCheck() {
         let checkCount = 0;
-        console.log('[WebViewRpcClient] Starting ready check for Unity server...');
         
         // Wrap in try-catch to prevent uncaught exceptions
         const performCheck = () => {
@@ -44,7 +43,6 @@ export class WebViewRpcClient {
                 }
                 
                 checkCount++;
-                console.log(`[WebViewRpcClient] Ready check #${checkCount} - sending ping to Unity server...`);
                 
                 const pingEnvelope = {
                     requestId: 'READY_CHECK_' + Date.now(),
@@ -195,7 +193,6 @@ export class WebViewRpcClient {
                         this._readyResolve();
                         this._readyResolve = null;
                     }
-                    console.log('Server is ready for RPC communication');
                 }
                 return;
             }
