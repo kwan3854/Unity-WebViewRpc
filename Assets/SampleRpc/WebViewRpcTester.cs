@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using HelloWorld;
 using UnityEngine;
+using UnityEngine.UI;
 using Vuplex.WebView;
 using WebViewRPC;
 
@@ -12,10 +13,19 @@ namespace SampleRpc
     public class WebViewRpcTester : MonoBehaviour
     {
         [SerializeField] private CanvasWebViewPrefab webViewPrefab;
+        [SerializeField] private Button image;
+        [SerializeField] private Text text;
+        
         private HelloServiceClient _client;
         private WebViewRpcServer _server;
         private WebViewRpcClient _rpcClient;
         private IWebViewBridge _bridge;
+        
+        // 시작 시간
+        private float _startTime;
+        
+        // 지연 시간 설정 (Inspector에서 조정 가능)
+        [SerializeField] private float serviceRegistrationDelay = 3.0f;
 
         private void Awake()
         {
@@ -27,7 +37,7 @@ namespace SampleRpc
             // Set chunking configuration
             try
             {
-                WebViewRpcConfiguration.MaxChunkSize = 900; // 900 bytes for testing
+                WebViewRpcConfiguration.MaxChunkSize = 1024; // 900 bytes for testing
                 WebViewRpcConfiguration.EnableChunking = true;
                 WebViewRpcConfiguration.ChunkTimeoutSeconds = 10; // 10 seconds for testing
                 
@@ -46,27 +56,47 @@ namespace SampleRpc
             }
             
             await InitializeWebView(webViewPrefab);
+            
+            Debug.Log($"[EXTREME TIMING TEST] WebView loaded, but intentionally delaying service registration for {serviceRegistrationDelay} seconds...");
+            Debug.Log($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Starting delay...");
+            
+            // 의도적으로 서비스 등록을 지연시킴
+            await UniTask.Delay(TimeSpan.FromSeconds(serviceRegistrationDelay));
+            
+            Debug.Log($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Delay finished, now registering services...");
         
             // Initialize C# Server to handle JS -> C# RPC
             _bridge = new ViewplexWebViewBridge(webViewPrefab);
             _server = new WebViewRpcServer(_bridge);
             _server.Services.Add(HelloService.BindService(new HelloWorldService()));
             _server.Start();
+            
+            Debug.Log($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] Unity RPC Server is now ready!");
         
             // Initialize C# Client to handle C# -> JS RPC
             _rpcClient = new WebViewRpcClient(_bridge);
             _client = new HelloServiceClient(_rpcClient);
+            
+            // On Button Click, run the bidirectional chunking test
+            image.onClick.AddListener(RunBidirectionalChunkingTest);
+            // Set button color to blue initially
+            image.GetComponent<Image>().color = Color.blue;
+            
+            text.text = "Click to send another request"; // Reset UI text
         }
 
         private async void RunBidirectionalChunkingTest()
         {
-            Debug.Log("--- [C# Client] Sending Hello Request ---");
+            Debug.Log("--- [C# Client] Starting Bidirectional Chunking Test ---");
+            Debug.Log("[C# Client] Waiting for WebView server to be ready...");
+            
+            _startTime = Time.time; // Record start time
             
             // Create a very long message for chunking test
             var sb = new StringBuilder();
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < 60; i++)
             {
-                sb.Append(new string((char)('X' + i), 2000));
+                sb.Append(new string((char)('X' + i), 1024));
             }
             var longMessage = sb.ToString();
 
