@@ -817,6 +817,7 @@ PlayerSettings:
   webGLCloseOnQuit: 0
   webWasm2023: 0
   scriptingDefineSymbols:
+    Android: VUPLEX_STANDALONE
     Standalone: VUPLEX_STANDALONE
   additionalCompilerArguments: {}
   platformArchitecture: {}
