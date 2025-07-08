@@ -50,6 +50,27 @@ namespace WebViewRPC
             {
                 var bytes = Convert.FromBase64String(base64);
                 var envelope = RpcEnvelope.Parser.ParseFrom(bytes);
+                
+                // Respond to ready check requests
+                if (envelope.Method == "__SYSTEM_READY_CHECK__" && envelope.IsRequest)
+                {
+                    Debug.Log($"[WebViewRpcServer] Received ready check request #{envelope.RequestId}");
+                    
+                    var responseEnvelope = new RpcEnvelope
+                    {
+                        RequestId = envelope.RequestId,
+                        IsRequest = false,
+                        Method = "__SYSTEM_READY_CHECK__",
+                        Payload = ByteString.CopyFrom(new byte[] { 1 })
+                    };
+                    
+                    var bytes2 = responseEnvelope.ToByteArray();
+                    var base64Response = Convert.ToBase64String(bytes2);
+                    _bridge.SendMessageToWeb(base64Response);
+                    
+                    Debug.Log($"[WebViewRpcServer] Sent ready check response for #{envelope.RequestId}");
+                    return;
+                }
 
                 // Check if this is a chunked message
                 if (envelope.ChunkInfo != null)

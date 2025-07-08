@@ -19,12 +19,87 @@ namespace WebViewRPC
         private readonly ChunkAssembler _chunkAssembler = new();
         private readonly CancellationTokenSource _cancellationTokenSource = new();
         private readonly object _pendingRequestsLock = new object();
+        
+        // Server ready check fields
+        private bool _serverReady = false;
+        private UniTaskCompletionSource _readyTcs;
+        private CancellationTokenSource _readyCheckCts;
+        private UniTask _readyCheckTask;
 
 
         public WebViewRpcClient(IWebViewBridge bridge)
         {
             _bridge = bridge;
             _bridge.OnMessageReceived += OnBridgeMessage;
+            
+            // Start checking if server is ready (non-blocking)
+            _readyCheckTask = StartReadyCheck().SuppressCancellationThrow();
+        }
+        
+        /// <summary>
+        /// Start periodic ready checks
+        /// </summary>
+        private async UniTask StartReadyCheck()
+        {
+            _readyCheckCts = new CancellationTokenSource();
+            var checkCount = 0;
+            
+            Debug.Log("[WebViewRpcClient] Starting ready check for WebView server...");
+            
+            try
+            {
+                while (!_serverReady && !_disposed && !_readyCheckCts.Token.IsCancellationRequested)
+                {
+                    checkCount++;
+                    Debug.Log($"[WebViewRpcClient] Ready check #{checkCount} - sending ping to WebView server...");
+                    
+                    var pingEnvelope = new RpcEnvelope
+                    {
+                        RequestId = $"READY_CHECK_{DateTime.Now.Ticks}",
+                        IsRequest = true,
+                        Method = "__SYSTEM_READY_CHECK__",
+                        Payload = ByteString.CopyFrom(new byte[] { 1 })
+                    };
+                    
+                    var bytes = pingEnvelope.ToByteArray();
+                    var base64 = Convert.ToBase64String(bytes);
+                    _bridge.SendMessageToWeb(base64);
+                    
+                    await UniTask.Delay(500, cancellationToken: _readyCheckCts.Token);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when cancelling
+                Debug.Log("[WebViewRpcClient] Ready check cancelled");
+            }
+            catch (Exception ex)
+            {
+                // Log unexpected errors
+                Debug.LogError($"[WebViewRpcClient] Ready check error: {ex.Message}");
+            }
+        }
+        
+        /// <summary>
+        /// Wait for the server to be ready
+        /// </summary>
+        public async UniTask WaitForServerReady(int timeoutMs = 10000)
+        {
+            if (_serverReady) return;
+            
+            _readyTcs = new UniTaskCompletionSource();
+            
+            using (var cts = new CancellationTokenSource(timeoutMs))
+            {
+                try
+                {
+                    await _readyTcs.Task.AttachExternalCancellation(cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw new TimeoutException($"WebView server not ready within {timeoutMs}ms timeout");
+                }
+            }
         }
 
         /// <summary>
@@ -39,6 +114,9 @@ namespace WebViewRPC
             {
                 throw new ObjectDisposedException(nameof(WebViewRpcClient), "Cannot call method on disposed client");
             }
+            
+            // Always check server is ready before making call
+            await WaitForServerReady();
             
             var requestId = Guid.NewGuid().ToString("N");
             var requestBytes = request.ToByteArray();
@@ -144,6 +222,19 @@ namespace WebViewRPC
             {
                 var bytes = Convert.FromBase64String(base64);
                 var envelope = RpcEnvelope.Parser.ParseFrom(bytes);
+                
+                // Check for ready response
+                if (envelope.Method == "__SYSTEM_READY_CHECK__" && !envelope.IsRequest)
+                {
+                    if (!_serverReady)
+                    {
+                        _serverReady = true;
+                        _readyCheckCts?.Cancel();
+                        _readyTcs?.TrySetResult();
+                        Debug.Log("WebView server is ready for RPC communication");
+                    }
+                    return;
+                }
 
                 // Check if this is a chunked message
                 if (envelope.ChunkInfo != null)
@@ -226,6 +317,20 @@ namespace WebViewRPC
                 // Cancel all operations
                 _cancellationTokenSource?.Cancel();
                 _cancellationTokenSource?.Dispose();
+                
+                // Cancel ready check
+                _readyCheckCts?.Cancel();
+                _readyCheckCts?.Dispose();
+                
+                // Wait for ready check task to complete (with timeout)
+                if (_readyCheckTask.Status == UniTaskStatus.Pending)
+                {
+                    try
+                    {
+                        _readyCheckTask.Forget();
+                    }
+                    catch { }
+                }
                 
                 _bridge.OnMessageReceived -= OnBridgeMessage;
                 

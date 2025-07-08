@@ -51,10 +51,45 @@ document.addEventListener('DOMContentLoaded', () => {
         logsEl.appendChild(p);
         console.log(message);
     };
+    
+    // 극한 테스트: DOM 로드 직후 바로 요청 보내기
+    log("=== EXTREME TIMING TEST ===");
+    log("Sending request immediately after page load...");
+    
+    (async () => {
+        try {
+            const immediateReq = {
+                name: "Immediate Test from WebView",
+                longMessage: "Testing ready check mechanism",
+                repeatCount: 1
+            };
+            
+            const startTime = Date.now();
+            log(`[${new Date().toISOString()}] Sending immediate request...`);
+            
+            const resp = await helloClient.SayHello(immediateReq);
+            
+            const elapsed = Date.now() - startTime;
+            log(`[${new Date().toISOString()}] Response received after ${elapsed}ms`);
+            
+            if (resp.error) {
+                log(`Immediate test failed: ${resp.error.message}`);
+            } else if (resp.data) {
+                log(`Immediate test succeeded: ${resp.data.greeting}`);
+                log(`Unity server was ready after ${elapsed}ms`);
+            }
+            
+            log("=== END EXTREME TIMING TEST ===\n");
+        } catch (err) {
+            log(`Immediate test error: ${err.message}`);
+            log("=== END EXTREME TIMING TEST ===\n");
+        }
+    })();
 
     document.getElementById('btnSayHello').addEventListener('click', async () => {
         try {
-            log("--- Sending Hello Request ---");
+            log("--- Starting Hello Request Test ---");
+            log("Waiting for Unity server to be ready...");
             
             // Create a very long message for chunking test
             const longMessage = "A".repeat(2000) + "B".repeat(2000) + "C".repeat(2000);
@@ -187,6 +222,30 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Add config test button to the page
     document.querySelector('body').insertBefore(configTestBtn, document.getElementById('logs'));
+    
+    // Add ready check test button
+    const readyTestBtn = document.createElement('button');
+    readyTestBtn.textContent = 'Test Manual Ready Check';
+    readyTestBtn.addEventListener('click', async () => {
+        log("--- Testing Manual Ready Check ---");
+        
+        try {
+            const startTime = Date.now();
+            log("Manually waiting for Unity server to be ready (15s timeout)...");
+            
+            await rpcClient.waitForServerReady(15000); // 15 second timeout
+            
+            const elapsed = Date.now() - startTime;
+            log(`✓ Unity server became ready after ${elapsed}ms`);
+        } catch (error) {
+            log(`✗ Ready check failed: ${error.message}`);
+        }
+        
+        log("--------------------------");
+    });
+    
+    // Add ready test button to the page
+    document.querySelector('body').insertBefore(readyTestBtn, document.getElementById('logs'));
     
     // Add dispose test button
     const disposeBtn = document.createElement('button');

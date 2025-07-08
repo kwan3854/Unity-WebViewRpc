@@ -13,23 +13,102 @@ export class WebViewRpcClient {
         this._pendingRequests = new Map();
         this._disposed = false;
         this._chunkAssembler = new ChunkAssembler();
+        this._serverReady = false;
+        this._readyPromise = null;
+        this._readyResolve = null;
+        this._readyCheckInterval = null;
 
         // Listen for responses from Unity
         this._bridge.onMessage((base64Message) => {
             this._handleMessage(base64Message);
         });
+        
+        // Start checking if server is ready
+        this._startReadyCheck();
+    }
+    
+    /**
+     * Start periodic ready checks
+     * @private
+     */
+    _startReadyCheck() {
+        let checkCount = 0;
+        console.log('[WebViewRpcClient] Starting ready check for Unity server...');
+        
+        // Wrap in try-catch to prevent uncaught exceptions
+        const performCheck = () => {
+            try {
+                if (this._serverReady || this._disposed) {
+                    clearInterval(this._readyCheckInterval);
+                    return;
+                }
+                
+                checkCount++;
+                console.log(`[WebViewRpcClient] Ready check #${checkCount} - sending ping to Unity server...`);
+                
+                const pingEnvelope = {
+                    requestId: 'READY_CHECK_' + Date.now(),
+                    isRequest: true,
+                    method: '__SYSTEM_READY_CHECK__',
+                    payload: new Uint8Array([1])
+                };
+                
+                const bytes = encodeRpcEnvelope(pingEnvelope);
+                const base64 = uint8ArrayToBase64(bytes);
+                this._bridge.sendMessage(base64);
+            } catch (error) {
+                console.error('[WebViewRpcClient] Error during ready check:', error);
+                // Don't throw - keep trying
+            }
+        };
+        
+        // Start immediately
+        performCheck();
+        
+        // Then repeat every 500ms
+        this._readyCheckInterval = setInterval(performCheck, 500);
+    }
+    
+    /**
+     * Wait for server to be ready
+     * @param {number} timeoutMs - Timeout in milliseconds
+     * @returns {Promise<void>}
+     */
+    async waitForServerReady(timeoutMs = 10000) {
+        if (this._serverReady) return;
+        
+        if (!this._readyPromise) {
+            this._readyPromise = new Promise((resolve, reject) => {
+                this._readyResolve = resolve;
+                
+                const timeout = setTimeout(() => {
+                    if (!this._serverReady) {
+                        reject(new Error('Server ready timeout'));
+                    }
+                }, timeoutMs);
+                
+                // Store timeout for cleanup
+                this._readyTimeout = timeout;
+            });
+        }
+        
+        return this._readyPromise;
     }
 
     /**
      * Call a remote method
      * @param {string} method - Method name
      * @param {Uint8Array} requestPayload - Request payload
+     * @param {number} [serverReadyTimeoutMs] - Optional custom timeout for server ready check
      * @returns {Promise<Uint8Array>} Response payload
      */
-    async callMethod(method, requestPayload) {
+    async callMethod(method, requestPayload, serverReadyTimeoutMs) {
         if (this._disposed) {
             throw new Error('RpcClient is disposed');
         }
+        
+        // Wait for server to be ready before making the call
+        await this.waitForServerReady(serverReadyTimeoutMs);
 
         const requestId = crypto.randomUUID();
         
@@ -103,6 +182,23 @@ export class WebViewRpcClient {
         try {
             const bytes = base64ToUint8Array(base64Message);
             const envelope = decodeRpcEnvelope(bytes);
+            
+            // Check for ready response
+            if (envelope.method === '__SYSTEM_READY_CHECK__' && !envelope.isRequest) {
+                if (!this._serverReady) {
+                    this._serverReady = true;
+                    clearInterval(this._readyCheckInterval);
+                    if (this._readyTimeout) {
+                        clearTimeout(this._readyTimeout);
+                    }
+                    if (this._readyResolve) {
+                        this._readyResolve();
+                        this._readyResolve = null;
+                    }
+                    console.log('Server is ready for RPC communication');
+                }
+                return;
+            }
 
             // Check if this is a chunked message
             if (envelope.chunkInfo) {
@@ -166,6 +262,16 @@ export class WebViewRpcClient {
     dispose() {
         if (!this._disposed) {
             this._disposed = true;
+            
+            // Clear ready check interval
+            if (this._readyCheckInterval) {
+                clearInterval(this._readyCheckInterval);
+            }
+            
+            // Clear ready timeout
+            if (this._readyTimeout) {
+                clearTimeout(this._readyTimeout);
+            }
             
             // Reject all pending requests
             for (const pending of this._pendingRequests.values()) {
