@@ -61,6 +61,25 @@ export class WebViewRpcServer {
         try {
             const bytes = base64ToUint8Array(base64Message);
             const envelope = decodeRpcEnvelope(bytes);
+            
+            // Respond to ready check requests
+            if (envelope.method === '__SYSTEM_READY_CHECK__' && envelope.isRequest) {
+                console.log(`[WebViewRpcServer] Received ready check request #${envelope.requestId}`);
+                
+                const responseEnvelope = {
+                    requestId: envelope.requestId,
+                    isRequest: false,
+                    method: '__SYSTEM_READY_CHECK__',
+                    payload: new Uint8Array([1])
+                };
+                
+                const responseBytes = encodeRpcEnvelope(responseEnvelope);
+                const responseBase64 = uint8ArrayToBase64(responseBytes);
+                this._bridge.sendMessage(responseBase64);
+                
+                console.log(`[WebViewRpcServer] Sent ready check response for #${envelope.requestId}`);
+                return;
+            }
 
             // Check if this is a chunked message
             if (envelope.chunkInfo) {
